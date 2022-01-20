@@ -1,0 +1,58 @@
+=head1 Podman::Image
+
+Provides operations to create (build, pull) a new image and to manage
+it.
+
+=head1 Attributes
+
+=head2 C<has 'Client'; #21>
+
+Podman::Client API connector.
+
+=head2 C<has 'Id'; #28>
+
+Image identifier, short identifier or name.
+
+=head1 Methods
+
+=head2 C<sub Build($Package, $Name, $File); #38>
+
+Build new named image by given OCI file.
+
+All files placed in the OCI file directory are packed in a tar archive
+and attached to the request body.
+
+=head2 C<sub Pull($Package, $Name, $Tag); #80>
+
+Pull named image with optional tag (default B<latest>) from registry.
+
+=head2 C<sub Export($Self, $File, $Compress); #107>
+
+Export image's filesystem contents as a tar archive and write into
+given file. Optional data may be compressed.
+
+=head2 C<sub History($Self); #124>
+
+Show the history of the image by printing out information about each
+layer used.
+
+=head2 C<sub Inspect($Self); #131>
+
+Display image configuration.
+
+=head2 C<sub Push($Self, $Destination); #138>
+
+Push image to given destination registry.
+
+=head2 C<sub Remove($Self, $Force); #150>
+
+Remove image from local store.
+
+=cut
+
+#Pod::HTML2Pod conversion notes:
+# 1324 bytes of input
+#Thu Jan 20 15:28:31 2022 tschaefer
+# No a_name switch not specified, so will not try to render <a name='...'>
+# Will try to render <a href='...'>
+# Untranslatable link: "Client.html"

@@ -1,0 +1,47 @@
+=head1 Podman
+
+This Perl package is a library of bindings to use the RESTful API of
+Podman (https://podman.io). For further information please have a look
+in the API reference
+(https://docs.podman.io/en/latest/_static/api.html).
+
+ my $Podman = Podman->new();
+ 
+ # List of available images in local store.
+ my $Images = $Podman->Images->List();
+ 
+ # Display names and Ids of available images.
+ for my $Image (@{ $Images }) {
+     my $Info = $Image->Inspect();
+     printf "%s: %s\n", $Image->Id, $Info->{RepoTags}->[0];
+ }
+
+=head1 Attributes
+
+=head2 C<has 'Containers'; #32>
+
+Binding to Podman::Containers.
+
+=head2 C<has 'Images'; #41>
+
+Binding to Podman::Images.
+
+=head2 C<has 'System'; #50>
+
+Binding to Podman::System.
+
+=head2 C<has 'Client'; #59>
+
+Podman::Client API connector.
+
+=cut
+
+#Pod::HTML2Pod conversion notes:
+# 1063 bytes of input
+#Thu Jan 20 15:28:31 2022 tschaefer
+# No a_name switch not specified, so will not try to render <a name='...'>
+# Will try to render <a href='...'>
+# Untranslatable link: "Podman/Containers.html"
+# Untranslatable link: "Podman/Images.html"
+# Untranslatable link: "Podman/System.html"
+# Untranslatable link: "Podman/Client.html"

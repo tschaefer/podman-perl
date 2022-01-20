@@ -1,0 +1,28 @@
+=head1 Podman::Exception
+
+Simple generic exception class.
+
+ Podman::Exception->new(
+     Message => 'Human error description',
+     Cause   => 'API root cause',
+ );
+
+Exception is thrown on API request failure.
+
+=head1 Attributes
+
+=head2 C<has 'Message'; #22>
+
+Human error description.
+
+=head2 C<has 'Cause'; #29>
+
+API root cause.
+
+=cut
+
+#Pod::HTML2Pod conversion notes:
+# 416 bytes of input
+#Thu Jan 20 15:28:31 2022 tschaefer
+# No a_name switch not specified, so will not try to render <a name='...'>
+# Will try to render <a href='...'>
