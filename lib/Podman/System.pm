@@ -8,11 +8,14 @@ use utf8;
 
 use Moose;
 
+use Podman::Client;
+
 ### [Podman::Client](Client.html) API connector.
 has 'Client' => (
     is       => 'ro',
     isa      => 'Podman::Client',
-    required => 1,
+    lazy    => 1,
+    default => sub { return Podman::Client->new() },
 );
 
 ###  Return information about disk usage for containers, images and volumes.

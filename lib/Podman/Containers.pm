@@ -16,13 +16,15 @@ use utf8;
 
 use Moose;
 
+use Podman::Client;
 use Podman::Container;
 
 ### [Podman::Client](Client.html) API connector.
 has 'Client' => (
     is       => 'ro',
     isa      => 'Podman::Client',
-    required => 1,
+    lazy    => 1,
+    default => sub { return Podman::Client->new() },
 );
 
 ### List all local stored containers.

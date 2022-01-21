@@ -21,7 +21,8 @@ use Podman::Client;
 has 'Client' => (
     is       => 'ro',
     isa      => 'Podman::Client',
-    required => 1,
+    lazy    => 1,
+    default => sub { return Podman::Client->new() },
 );
 
 ### Image identifier, short identifier or name.

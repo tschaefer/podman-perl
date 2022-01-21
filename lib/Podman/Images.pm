@@ -16,13 +16,15 @@ use utf8;
 
 use Moose;
 
+use Podman::Client;
 use Podman::Image;
 
 ### [Podman::Client](Client.html) API connector.
 has 'Client' => (
-    is       => 'ro',
-    isa      => 'Podman::Client',
-    required => 1,
+    is      => 'ro',
+    isa     => 'Podman::Client',
+    lazy    => 1,
+    default => sub { return Podman::Client->new() },
 );
 
 ### List all local stored images.
@@ -50,12 +52,9 @@ sub List {
     );
 
     my @List = ();
-    @List = map {
-        Podman::Image->new(
-            Client => $Self->Client,
-            Id        => $_->{Id},
-        )
-    } @{$List};
+    @List =
+      map { Podman::Image->new( Client => $Self->Client, Id => $_->{Id}, ) }
+      @{$List};
 
     return \@List;
 }
