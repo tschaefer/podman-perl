@@ -23,6 +23,7 @@ WriteMakefile(
         'JSON::XS'   => '4.03',
         'Moose'      => '2.2014',
         'Path::Tiny' => '0.114',
+        'Readonly'   => '2.05',
         'Try::Tiny'  => '0.30',
         'URI'        => '5.10',
     },

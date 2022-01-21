@@ -23,8 +23,10 @@ use File::Basename ();
 use JSON::XS ();
 use URI;
 use Try::Tiny;
+use Readonly;
 
-use Podman;
+Readonly::Scalar my $VERSION => '20220120.0';
+
 use Podman::Exception;
 use Podman::Client::Furl;
 
@@ -75,7 +77,7 @@ has 'UserAgent' => (
 sub _BuildUserAgent {
     my $Self = shift;
 
-    return sprintf "Podman::Perl/%s", $Podman::VERSION;
+    return sprintf "Podman::Perl/%s", $VERSION;
 }
 
 sub _BuildConnectionUrl {
