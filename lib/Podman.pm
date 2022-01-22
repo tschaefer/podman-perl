@@ -19,7 +19,7 @@ use strict;
 use warnings;
 use utf8;
 
-our $VERSION = '20220120.0';
+our $VERSION = '20220122.0';
 
 use Moose;
 

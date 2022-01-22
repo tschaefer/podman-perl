@@ -25,7 +25,7 @@ use URI;
 use Try::Tiny;
 use Readonly;
 
-Readonly::Scalar my $VERSION => '20220120.0';
+Readonly::Scalar my $VERSION => '20220122.0';
 
 use Podman::Exception;
 use Podman::Client::Furl;
