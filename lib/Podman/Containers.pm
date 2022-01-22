@@ -88,7 +88,7 @@ sub Prune {
 sub Create {
     my ( $Self, $Name, $Id, $Command ) = @_;
 
-    return Podman::Container->Create( $Name, $Id, $Command );
+    return Podman::Container->Create( $Name, $Id, $Command, $Self->Client );
 }
 
 __PACKAGE__->meta->make_immutable;

@@ -27,11 +27,11 @@ has 'Id' => (
 
 ### Create new named container of given image with given command.
 sub Create {
-    my ( $Package, $Name, $Image, $Command ) = @_;
+    my ( $Package, $Name, $Image, $Command, $Client ) = @_;
 
     return if Scalar::Util::blessed($Package);
 
-    my $Client = Podman::Client->new();
+    $Client //= Podman::Client->new();
 
     my $Response = $Client->Post(
         'containers/create',

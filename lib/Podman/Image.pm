@@ -37,7 +37,7 @@ has 'Id' => (
 ### All files placed in the OCI file directory are packed in a tar archive and
 ### attached to the request body.
 sub Build {
-    my ( $Package, $Name, $File ) = @_;
+    my ( $Package, $Name, $File, $Client ) = @_;
 
     return if Scalar::Util::blessed($Package);
 
@@ -55,7 +55,7 @@ sub Build {
     my $ArchiveFile = File::Temp->new();
     $Archive->write( $ArchiveFile->filename );
 
-    my $Client = Podman::Client->new();
+    $Client //= Podman::Client->new();
 
     my $Response = $Client->Post(
         'build',
@@ -79,13 +79,13 @@ sub Build {
 
 ### Pull named image with optional tag (default **latest**) from registry.
 sub Pull {
-    my ( $Package, $Name, $Tag ) = @_;
+    my ( $Package, $Name, $Tag, $Client ) = @_;
 
     return if Scalar::Util::blessed($Package);
 
     $Name = sprintf "%s:%s", $Name, $Tag // 'latest';
 
-    my $Client = Podman::Client->new();
+    $Client //= Podman::Client->new();
 
     my $Response = $Client->Post(
         'images/pull',

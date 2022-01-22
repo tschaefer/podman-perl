@@ -70,14 +70,14 @@ sub Prune {
 sub Build {
     my ( $Self, $Name, $File ) = @_;
 
-    return Podman::Image->Build( $Name, $File );
+    return Podman::Image->Build( $Name, $File, $Self->Client );
 }
 
 ### Pull an image from a registry, see [`Podman::Image`](Podman/Image.html).
 sub Pull {
-    my ( $Self, $Name ) = @_;
+    my ( $Self, $Name, $Tag ) = @_;
 
-    return Podman::Image->Pull($Name);
+    return Podman::Image->Pull( $Name, $Tag, $Self->Client );
 }
 
 __PACKAGE__->meta->make_immutable;
