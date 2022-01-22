@@ -104,7 +104,7 @@ sub _BuildRequestUrl {
 
     my $RequestUrl = URI->new_abs( $Path, $RequestBaseUrl )->as_string();
 
-    return $RequestUrl;
+    return $RequestUrl . '/';
 }
 
 sub _BuildConnection {
@@ -173,6 +173,13 @@ sub _HandleResponse {
     $Content //= $Response->content;
 
     if ( !$Response->is_success ) {
+        if (ref $Content ne 'HASH') {
+            return Podman::Exception->new(
+                Message => $Content,
+                Cause   => $Content,
+            )->throw();
+        }
+
         return Podman::Exception->new(
             Message => $Content->{message},
             Cause   => $Content->{cause},
