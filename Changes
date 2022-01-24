@@ -11,3 +11,7 @@
 * Improve handle response.
 * Set default API client in all classes.
 * Add Podman::Client to container, image constructor.
+
+## 20220124.0
+
+* Use Mojo::UserAgent and tools as API client.

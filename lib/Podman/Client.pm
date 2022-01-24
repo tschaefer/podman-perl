@@ -3,7 +3,7 @@ package Podman::Client;
 ##! API connection client.
 ##!
 ##!     my $Client = Podman::Client->new(
-##!         ConnectionUrl => 'unix:///run/user/1000/podman/podman.sock',
+##!         ConnectionUrl => 'http+unix:///run/user/1000/podman/podman.sock',
 ##!         Timeout       => 1800,
 ##!     );
 ##!
@@ -19,19 +19,27 @@ use utf8;
 
 use Moose;
 
-use File::Basename ();
-use JSON::XS ();
-use URI;
 use Try::Tiny;
 use Readonly;
 
-Readonly::Scalar my $VERSION => '20220122.0';
+use Mojo::Asset::File;
+use Mojo::Asset::Memory;
+use Mojo::JSON ();
+use Mojo::UserAgent;
+use Mojo::Util ();
+use Mojo::URL;
+
+Readonly::Scalar my $VERSION => '20220124.0';
 
 use Podman::Exception;
-use Podman::Client::Furl;
 
-### API connection Url. Possible connections are via UNIX socket path
-### (default) or tcp (http/https) connection.
+### API connection Url. Possible connections are via UNIX socket (default) or
+### tcp connection.
+###
+###     * http+unix
+###     * https+unix
+###     * http
+###     * https
 has 'ConnectionUrl' => (
     is      => 'ro',
     isa     => 'Str',
@@ -48,33 +56,33 @@ has 'Timeout' => (
 );
 
 ### API connection object.
-has 'Connection' => (
+has 'UserAgent' => (
     is       => 'ro',
-    isa      => 'Furl',
+    isa      => 'Mojo::UserAgent',
     lazy     => 1,
-    builder  => '_BuildConnection',
+    builder  => '_BuildUserAgent',
     init_arg => undef,
 );
 
 ### API request Url depends on connection Url and Podman service version.
 has 'RequestUrl' => (
     is       => 'ro',
-    isa      => 'Str',
+    isa      => 'Mojo::URL',
     lazy     => 1,
     builder  => '_BuildRequestUrl',
     init_arg => undef,
 );
 
 ### API client identification.
-has 'UserAgent' => (
+has 'UserAgentName' => (
     is       => 'ro',
     isa      => 'Str',
     lazy     => 1,
-    builder  => '_BuildUserAgent',
+    builder  => '_BuildUserAgentName',
     init_arg => undef,
 );
 
-sub _BuildUserAgent {
+sub _BuildUserAgentName {
     my $Self = shift;
 
     return sprintf "Podman::Perl/%s", $VERSION;
@@ -83,97 +91,73 @@ sub _BuildUserAgent {
 sub _BuildConnectionUrl {
     my $Self = shift;
 
-    return sprintf "unix://%s/podman/podman.sock",
+    return sprintf "http+unix://%s/podman/podman.sock",
       $ENV{XDG_RUNTIME_DIR} ? $ENV{XDG_RUNTIME_DIR} : '/tmp';
 }
 
 sub _BuildRequestUrl {
     my $Self = shift;
 
-    my ($Scheme) = $Self->ConnectionUrl =~ m{([a-z]+)://};
+    my $Scheme = Mojo::URL->new( $Self->ConnectionUrl )->scheme();
 
-    my $RequestBaseUrl = $Scheme eq 'unix' ? 'http://d/' : $Self->ConnectionUrl;
+    my $RequestBaseUrl =
+      $Scheme =~ m{unix$} ? 'http://d/' : $Self->ConnectionUrl;
 
-    my $Response = $Self->Connection->request(
-        url    => URI->new_abs( 'version', $RequestBaseUrl )->as_string(),
-        method => 'GET',
-    );
+    my $Transaction =
+      $Self->UserAgent->get( Mojo::URL->new($RequestBaseUrl)->path('version') );
 
-    my $JSON = $Self->_HandleResponse($Response);
+    my $JSON = $Transaction->res->json;
     my $Path = sprintf "v%s/libpod", $JSON->{Version};
 
-    my $RequestUrl = URI->new_abs( $Path, $RequestBaseUrl )->as_string();
-
-    return $RequestUrl . '/';
+    return Mojo::URL->new($RequestBaseUrl)->path($Path);
 }
 
-sub _BuildConnection {
+sub _BuildUserAgent {
     my $Self = shift;
 
-    my ( $Scheme, $Path ) = $Self->ConnectionUrl =~ m{([a-z]+)://(.+)};
+    my $UserAgent = Mojo::UserAgent->new(
+        connect_timeout    => 10,
+        inactivity_timeout => $Self->Timeout,
+    );
+    $UserAgent->transactor->name( $Self->UserAgentName );
 
-    return Podman::Client::Furl->http(
-        agent   => $Self->UserAgent,
-        timeout => $Self->Timeout,
-    ) if $Scheme =~ m{http(?:s)?};
+    my $ConnectionUrl = Mojo::URL->new( $Self->ConnectionUrl );
+    my $Scheme        = $ConnectionUrl->scheme();
 
-    return Podman::Client::Furl->unix(
-        agent   => $Self->UserAgent,
-        timeout => $Self->Timeout,
-        socket  => $Path,
-    ) if $Scheme eq 'unix';
+    if ( $Scheme =~ m{unix$} ) {
+        my $Path = Mojo::Util::url_escape( $ConnectionUrl->path() );
 
-    return;
+        if ( $Scheme =~ m{^https} ) {
+            $UserAgent->proxy->https( sprintf "https+unix://%s", $Path );
+        }
+        else {
+            $UserAgent->proxy->http( sprintf "http+unix://%s", $Path );
+        }
+    }
+
+    return $UserAgent;
 }
 
 sub _MakeUrl {
     my ( $Self, $Path, $Parameters ) = @_;
 
-    my $Url = URI->new_abs( $Path, $Self->RequestUrl );
+    my $Url = Mojo::URL->new( $Self->RequestUrl )->path($Path);
 
     if ($Parameters) {
-        my $Parameters = $Self->_StringifyParameters($Parameters);
-        $Url = URI->new_abs( $Parameters, $Url );
+        $Url = Mojo::URL->new($Url)->query($Parameters);
     }
 
-    return $Url->as_string;
+    return $Url;
 }
 
-sub _StringifyParameters {
-    my ( $Self, $Parameters ) = @_;
+sub _HandleTransaction {
+    my ( $Self, $Transaction ) = @_;
 
-    my $String = '';
-    while ( my ( $Key, $Value ) = each %{$Parameters} ) {
-        $String = sprintf "%s%s=%s&", $String, $Key, $Value;
-    }
+    my $Content = try { $Transaction->res->json; };
+    $Content //= $Transaction->res->body;
 
-    if ($String) {
-        chop $String;
-        $String = sprintf "?%s", $String;
-    }
-
-    return $String;
-}
-
-sub _FlattenHeaders {
-    my ( $Self, $Headers ) = @_;
-
-    my @Flatten;
-    while ( my ( $Key, $Value ) = each %{$Headers} ) {
-        push @Flatten, $Key, $Value;
-    }
-
-    return \@Flatten;
-}
-
-sub _HandleResponse {
-    my ( $Self, $Response ) = @_;
-
-    my $Content = try { JSON::XS::decode_json( $Response->content ) };
-    $Content //= $Response->content;
-
-    if ( !$Response->is_success ) {
-        if (ref $Content ne 'HASH') {
+    if ( !$Transaction->res->is_success ) {
+        if ( ref $Content ne 'HASH' ) {
             return Podman::Exception->new(
                 Message => $Content,
                 Cause   => $Content,
@@ -193,13 +177,13 @@ sub _HandleResponse {
 sub Get {
     my ( $Self, $Path, %Options ) = @_;
 
-    my $Response = $Self->Connection->request(
-        url     => $Self->_MakeUrl( $Path, $Options{Parameters} ),
-        method  => 'GET',
-        headers => $Self->_FlattenHeaders( $Options{Headers} )
+    my $Transaction = $Self->UserAgent->build_tx(
+        GET => $Self->_MakeUrl( $Path, $Options{Parameters} ),
+        $Options{Headers},
     );
+    $Transaction = $Self->UserAgent->start($Transaction);
 
-    return $Self->_HandleResponse($Response);
+    return $Self->_HandleTransaction($Transaction);
 }
 
 ### Send API post request to path with optional parameters, headers and
@@ -207,32 +191,40 @@ sub Get {
 sub Post {
     my ( $Self, $Path, %Options ) = @_;
 
-    my $Data = $Options{Data};
-    if ( $Data && ref $Data ne 'File::Temp' ) {
-        $Data = JSON::XS::encode_json($Data);
-    }
-
-    my $Response = $Self->Connection->request(
-        url     => $Self->_MakeUrl( $Path, $Options{Parameters} ),
-        content => $Data,
-        method  => 'POST',
-        headers => $Self->_FlattenHeaders( $Options{Headers} )
+    my $Transaction = $Self->UserAgent->build_tx(
+        POST => $Self->_MakeUrl( $Path, $Options{Parameters} ),
+        $Options{Headers},
     );
 
-    return $Self->_HandleResponse($Response);
+    my $Data = $Options{Data};
+    if ( $Data && ref $Data eq 'File::Temp' ) {
+        $Transaction->req->content->asset(
+            Mojo::Asset::File->new( path => $Data->filename ) );
+    }
+    else {
+        $Transaction->req->content->asset(
+            Mojo::Asset::Memory->new->add_chunk(
+                Mojo::JSON::encode_json($Data)
+            )
+        );
+    }
+
+    $Transaction = $Self->UserAgent->start($Transaction);
+
+    return $Self->_HandleTransaction($Transaction);
 }
 
 ### Send API delete request to path with optional parameters and headers.
 sub Delete {
     my ( $Self, $Path, %Options ) = @_;
 
-    my $Response = $Self->Connection->request(
-        url     => $Self->_MakeUrl( $Path, $Options{Parameters} ),
-        method  => 'DELETE',
-        headers => $Self->_FlattenHeaders( $Options{Headers} )
+    my $Transaction = $Self->UserAgent->build_tx(
+        Delete => $Self->_MakeUrl( $Path, $Options{Parameters} ),
+        $Options{Headers},
     );
+    $Transaction = $Self->UserAgent->start($Transaction);
 
-    return $Self->_HandleResponse($Response);
+    return $Self->_HandleTransaction($Transaction);
 }
 
 __PACKAGE__->meta->make_immutable;
