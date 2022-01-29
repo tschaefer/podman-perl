@@ -15,3 +15,9 @@
 ## 20220124.0
 
 * Use Mojo::UserAgent and tools as API client.
+
+## 20220129.0
+
+* Create exception message by API code.
+* Create unit tests.
+* Simplify library interface.
