@@ -29,11 +29,7 @@ has 'Client' => (
 
 ### List all local stored containers.
 ### ```
-###     use Podman::Client;
-###
-###     my $Containers = Podman::Containers->new(Client => Podman::Client->new());
-###
-###     my $List = $Containers->List();
+###     my $List = Podman::Containers->new->List();
 ###     is(ref $List, 'ARRAY', 'Containers list ok.');
 ###
 ###     if ($List) {
@@ -54,41 +50,11 @@ sub List {
     my @List = map {
         Podman::Container->new(
             Client => $Self->Client,
-            Id        => $_->{Id},
+            Name   => $_->{Names}->[0],
         )
     } @{$List};
 
     return \@List;
-}
-
-### List all mounted local stored containers.
-### ```
-###     use Podman::Client;
-###
-###     my $Containers = Podman::Containers->new(Client => Podman::Client->new());
-###
-###     my $List = $Containers->Mounted();
-###     is(ref $List, 'HASH', 'Containers list ok.');
-###
-### ```
-sub Mounted {
-    my $Self = shift;
-
-    return $Self->Client->Get('containers/showmounted');
-}
-
-### Delete all unused containers.
-sub Prune {
-    my $Self = shift;
-
-    return $Self->Client->Post('containers/prune');
-}
-
-### Create new container, see [`Podman::Container`](Container.html)
-sub Create {
-    my ( $Self, $Name, $Id, $Command ) = @_;
-
-    return Podman::Container->Create( $Name, $Id, $Command, $Self->Client );
 }
 
 __PACKAGE__->meta->make_immutable;

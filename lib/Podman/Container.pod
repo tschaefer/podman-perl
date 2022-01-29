@@ -2,17 +2,17 @@
 
 =head1 Attributes
 
-=head2 C<has 'Client'; #14>
+=head2 C<has 'Client'; #15>
 
 Podman::Client API connector.
 
-=head2 C<has 'Id'; #21>
+=head2 C<has 'Name'; #23>
 
 Image identifier, short identifier or name.
 
 =head1 Methods
 
-=head2 C<sub Create($Package, $Name, $Image, $Command); #28>
+=head2 C<sub Create($Package, $Name, $Image, $Client, %Options); #30>
 
 Create new named container of given image with given command.
 
@@ -20,51 +20,27 @@ Create new named container of given image with given command.
 
 Delete container, optional force deleting if current in use.
 
-=head2 C<sub Inspect($Self); #70>
+=head2 C<sub Inspect($Self); #72>
 
 Display container configuration.
 
-=head2 C<sub Kill($Self, $Signal, $All); #77>
+=head2 C<sub Kill($Self, $Signal, $All); #95>
 
 Kill container.
 
-=head2 C<sub Pause($Self, $Id); #92>
-
-Pause container.
-
-=head2 C<sub Rename($Self, $Name); #99>
-
-Rename container.
-
-=head2 C<sub Restart($Self, $Id); #111>
-
-Restart container.
-
-=head2 C<sub Start($Self, $Id); #118>
+=head2 C<sub Start($Self, $Name); #112>
 
 Start container.
 
-=head2 C<sub Stats($Self, $Id); #125>
-
-Display current statistics.
-
-=head2 C<sub Stop($Self, $Id); #138>
+=head2 C<sub Stop($Self, $Name); #121>
 
 Stop container.
-
-=head2 C<sub Top($Self, $PsArgs); #145>
-
-Show running process within container.
-
-=head2 C<sub Unpause($Self, $Id); #159>
-
-Unpause container.
 
 =cut
 
 #Pod::HTML2Pod conversion notes:
-# 1349 bytes of input
-#Thu Jan 20 15:28:31 2022 tschaefer
+# 863 bytes of input
+#Sat Jan 29 14:01:39 2022 tschaefer
 # No a_name switch not specified, so will not try to render <a name='...'>
 # Will try to render <a href='...'>
 # Untranslatable link: "Client.html"

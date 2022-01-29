@@ -9,17 +9,18 @@ use Moose;
 use Scalar::Util;
 
 use Podman::Client;
+use Podman::Image;
 
 ### [Podman::Client](Client.html) API connector.
 has 'Client' => (
-    is       => 'ro',
-    isa      => 'Podman::Client',
+    is      => 'ro',
+    isa     => 'Podman::Client',
     lazy    => 1,
     default => sub { return Podman::Client->new() },
 );
 
 ### Image identifier, short identifier or name.
-has 'Id' => (
+has 'Name' => (
     is       => 'ro',
     isa      => 'Str',
     required => 1,
@@ -27,7 +28,7 @@ has 'Id' => (
 
 ### Create new named container of given image with given command.
 sub Create {
-    my ( $Package, $Name, $Image, $Command, $Client ) = @_;
+    my ( $Package, $Name, $Image, $Client, %Options ) = @_;
 
     return if Scalar::Util::blessed($Package);
 
@@ -36,11 +37,9 @@ sub Create {
     my $Response = $Client->Post(
         'containers/create',
         Data => {
-            Image => $Image,
-            Cmd   => [$Command],
-        },
-        Parameters => {
-            name => $Name,
+            image => $Image,
+            name  => $Name,
+            %Options
         },
         Headers => {
             'Content-Type' => 'application/json'
@@ -51,7 +50,7 @@ sub Create {
 
     return __PACKAGE__->new(
         Client => $Client,
-        Id        => $Response->{Id}
+        Name   => $Name,
     );
 }
 
@@ -59,108 +58,72 @@ sub Create {
 sub Delete {
     my ( $Self, $Force ) = @_;
 
-    return $Self->Client->Delete(
-        ( sprintf "containers/%s", $Self->Id ),
+    $Self->Client->Delete(
+        ( sprintf "containers/%s", $Self->Name ),
         Parameters => {
             force => $Force,
         }
     );
+
+    return 1;
 }
 
 ### Display container configuration.
 sub Inspect {
     my $Self = shift;
 
-    return $Self->Client->Get( sprintf "containers/%", $Self->Id );
+    my $Data = $Self->Client->Get( sprintf "containers/%s/json", $Self->Name );
+
+    my $State = $Data->{State}->{Status};
+    $State = $State eq 'configured' ? 'created' : $State;
+    my %Inspect = (
+        Id    => $Data->{Id},
+        Image => Podman::Image->new(
+            Name   => $Data->{ImageName},
+            Client => $Self->Client
+        ),
+        Created => $Data->{Created},
+        Status  => $State,
+        Cmd     => $Data->{Config}->{Cmd},
+        Ports   => $Data->{HostConfig}->{PortBindings},
+    );
+
+    return \%Inspect;
 }
 
 ### Kill container.
 sub Kill {
     my ( $Self, $Signal, $All ) = @_;
 
-    $Signal //= 'SIGKILL';
+    $Signal //= 'SIGTERM';
 
-    return $Self->Client->Post(
-        ( sprintf "containers/%s/kill", $Self->Id ),
+    $Self->Client->Post(
+        ( sprintf "containers/%s/kill", $Self->Name ),
         Parameters => {
             signal => $Signal,
             all    => $All,
         },
     );
-}
 
-### Pause container.
-sub Pause {
-    my ( $Self, $Id ) = @_;
-
-    return $Self->Client->Post( sprintf "containers/%s/pause", $Self->Id );
-}
-
-### Rename container.
-sub Rename {
-    my ( $Self, $Name ) = @_;
-
-    return $Self->Client->Post(
-        ( sprintf "containers/%s/rename", $Self->Id ),
-        Parameters => {
-            rename => $Name,
-        }
-    );
-}
-
-### Restart container.
-sub Restart {
-    my ( $Self, $Id ) = @_;
-
-    return $Self->Client->Post( sprintf "containers/%s/restart", $Self->Id );
+    return 1;
 }
 
 ### Start container.
 sub Start {
-    my ( $Self, $Id ) = @_;
+    my ( $Self, $Name ) = @_;
 
-    return $Self->Client->Post( sprintf "containers/%s/start", $Self->Id );
-}
+    $Self->Client->Post( sprintf "containers/%s/start", $Self->Name );
 
-### Display current statistics.
-sub Stats {
-    my ( $Self, $Id ) = @_;
-
-    return $Self->Client->Get(
-        ( sprintf "containers/%s/stats", $Self->Id ),
-        Parameters => {
-            stream     => 0,
-            'one-shot' => 1
-        }
-    );
+    return 1;
 }
 
 ### Stop container.
 sub Stop {
-    my ( $Self, $Id ) = @_;
+    my ( $Self, $Name ) = @_;
 
-    return $Self->Client->Post( sprintf "containers/%s/stop", $Self->Id );
-}
+    $Self->Client->Post( sprintf "containers/%s/stop", $Self->Name );
 
-### Show running process within container.
-sub Top {
-    my ( $Self, $PsArgs ) = @_;
-
-    $PsArgs //= '-ef';
-
-    return $Self->Client->Get(
-        ( sprintf "containers/%s/top", $Self->Id ),
-        Parameters => {
-            ps_args => $PsArgs,
-        }
-    );
-}
-
-### Unpause container.
-sub Unpause {
-    my ( $Self, $Id ) = @_;
-
-    return $Self->Client->Post( sprintf "containers/%s/unpause", $Self->Id );
+    return 1;
 }
 
 __PACKAGE__->meta->make_immutable;

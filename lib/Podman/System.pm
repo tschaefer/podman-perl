@@ -8,12 +8,14 @@ use utf8;
 
 use Moose;
 
+use List::Util ();
+
 use Podman::Client;
 
 ### [Podman::Client](Client.html) API connector.
 has 'Client' => (
-    is       => 'ro',
-    isa      => 'Podman::Client',
+    is      => 'ro',
+    isa     => 'Podman::Client',
     lazy    => 1,
     default => sub { return Podman::Client->new() },
 );
@@ -39,31 +41,21 @@ has 'Client' => (
 sub DiskUsage {
     my $Self = shift;
 
-    return $Self->Client->Get('system/df');
-}
+    my $Data = $Self->Client->Get('system/df');
 
-### Returns information on the system and libpod configuration
-### ```
-###     use Podman::Client;
-###
-###     my $System = Podman::System->new(Client => Podman::Client->new());
-###
-###     my $Info = $System->Info();
-###     is(ref $Info, 'HASH', 'Info object ok.');
-###
-###     my @Keys = sort keys %{ $Info };
-###     my @Expected = (
-###         'host',
-###         'registries',
-###         'store',
-###         'version',
-###     );
-###     is_deeply(\@Keys, \@Expected, 'Info object complete.');
-### ```
-sub Info {
-    my $Self = shift;
+    my %DiskUsage;
+    for my $Type (qw(Volumes Containers Images)) {
+        my @TypeData = @{ $Data->{$Type} };
+        my %Entry    = (
+            Total  => scalar @TypeData,
+            Active =>
+              List::Util::sum( map { $_->{Containers} ? 1 : 0 } @TypeData ),
+            Size => List::Util::sum( map { $_->{Size} } @TypeData ),
+        );
+        $DiskUsage{$Type} = \%Entry;
+    }
 
-    return $Self->Client->Get('info');
+    return \%DiskUsage;
 }
 
 ### Obtain a dictionary of versions for the Podman components.
@@ -79,7 +71,13 @@ sub Info {
 sub Version {
     my $Self = shift;
 
-    return $Self->Client->Get('version');
+    my $Data = $Self->Client->Get('info');
+
+    my $Version = $Data->{version};
+    delete $Version->{GitCommit};
+    delete $Version->{Built};
+
+    return $Version;
 }
 
 __PACKAGE__->meta->make_immutable;

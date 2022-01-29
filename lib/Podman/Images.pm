@@ -2,10 +2,8 @@ package Podman::Images;
 
 ##! Provides the operations against images for a Podman service.
 ##!
-##!     my $Images = Podman::Images->new(Client => Podman::Client->new());
-##!
 ##!     # Display names and Ids of available images.
-##!     for my $Image (@{ $Images->list() }) {
+##!     for my $Image (@{ Podman::Images->new->List() }) {
 ##!         my $Info = $Image->Inspect();
 ##!         printf "%s: %s\n", $Image->Id, $Info->{RepoTags}->[0];
 ##!     }
@@ -53,31 +51,15 @@ sub List {
 
     my @List = ();
     @List =
-      map { Podman::Image->new( Client => $Self->Client, Id => $_->{Id}, ) }
-      @{$List};
+      map {
+        my ($Name) = split /:/, $_->{RepoTags}->[0];
+        Podman::Image->new(
+            Client => $Self->Client,
+            Name   => $Name,
+        )
+      } @{$List};
 
     return \@List;
-}
-
-### Remove all unused images.
-sub Prune {
-    my $Self = shift;
-
-    return $Self->Client->Post('images/prune');
-}
-
-### Build new image, see [`Podman::Image`](Podman/Image.html).
-sub Build {
-    my ( $Self, $Name, $File ) = @_;
-
-    return Podman::Image->Build( $Name, $File, $Self->Client );
-}
-
-### Pull an image from a registry, see [`Podman::Image`](Podman/Image.html).
-sub Pull {
-    my ( $Self, $Name, $Tag ) = @_;
-
-    return Podman::Image->Pull( $Name, $Tag, $Self->Client );
 }
 
 __PACKAGE__->meta->make_immutable;

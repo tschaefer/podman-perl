@@ -12,13 +12,13 @@ Provides the operations against containers for a Podman service.
 
 =head1 Attributes
 
-=head2 C<has 'Client'; #22>
+=head2 C<has 'Client'; #23>
 
 Podman::Client API connector.
 
 =head1 Methods
 
-=head2 C<sub List($Self); #42>
+=head2 C<sub List($Self); #44>
 
 List all local stored containers.
 
@@ -33,31 +33,11 @@ List all local stored containers.
      is(ref $List->[0], 'Podman::Container', 'Containers list items ok.');
  }
 
-=head2 C<sub Mounted($Self); #72>
-
-List all mounted local stored containers.
-
- use Podman::Client;
- 
- my $Containers = Podman::Containers->new(Client => Podman::Client->new());
- 
- my $List = $Containers->Mounted();
- is(ref $List, 'HASH', 'Containers list ok.');
-
-=head2 C<sub Prune($Self); #79>
-
-Delete all unused containers.
-
-=head2 C<sub Create($Self, $Name, $Id, $Command); #86>
-
-Create new container, see C<Podman::Container>
-
 =cut
 
 #Pod::HTML2Pod conversion notes:
-# 1521 bytes of input
-#Thu Jan 20 15:28:31 2022 tschaefer
+# 963 bytes of input
+#Sat Jan 29 14:01:39 2022 tschaefer
 # No a_name switch not specified, so will not try to render <a name='...'>
 # Will try to render <a href='...'>
 # Untranslatable link: "Client.html"
-# Untranslatable link: "Container.html"

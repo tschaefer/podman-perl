@@ -4,13 +4,13 @@ Provide system level information for the Podman service.
 
 =head1 Attributes
 
-=head2 C<has 'Client'; #12>
+=head2 C<has 'Client'; #16>
 
 Podman::Client API connector.
 
 =head1 Methods
 
-=head2 C<sub DiskUsage($Self); #36>
+=head2 C<sub DiskUsage($Self); #41>
 
 Return information about disk usage for containers, images and volumes.
 
@@ -29,27 +29,7 @@ Return information about disk usage for containers, images and volumes.
  );
  is_deeply(\@Keys, \@Expected, 'DiskUsage object complete.');
 
-=head2 C<sub Info($Self); #60>
-
-Returns information on the system and libpod configuration
-
- use Podman::Client;
- 
- my $System = Podman::System->new(Client => Podman::Client->new());
- 
- my $Info = $System->Info();
- is(ref $Info, 'HASH', 'Info object ok.');
- 
- my @Keys = sort keys %{ $Info };
- my @Expected = (
-     'host',
-     'registries',
-     'store',
-     'version',
- );
- is_deeply(\@Keys, \@Expected, 'Info object complete.');
-
-=head2 C<sub Version($Self); #76>
+=head2 C<sub Version($Self); #71>
 
 Obtain a dictionary of versions for the Podman components.
 
@@ -64,8 +44,8 @@ Obtain a dictionary of versions for the Podman components.
 =cut
 
 #Pod::HTML2Pod conversion notes:
-# 1604 bytes of input
-#Thu Jan 20 15:28:31 2022 tschaefer
+# 1128 bytes of input
+#Sat Jan 29 14:01:39 2022 tschaefer
 # No a_name switch not specified, so will not try to render <a name='...'>
 # Will try to render <a href='...'>
 # Untranslatable link: "Client.html"

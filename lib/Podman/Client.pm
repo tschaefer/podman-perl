@@ -3,7 +3,7 @@ package Podman::Client;
 ##! API connection client.
 ##!
 ##!     my $Client = Podman::Client->new(
-##!         ConnectionUrl => 'http+unix:///run/user/1000/podman/podman.sock',
+##!         Connection => 'http+unix:///run/user/1000/podman/podman.sock',
 ##!         Timeout       => 1800,
 ##!     );
 ##!
@@ -31,20 +31,20 @@ use Mojo::URL;
 
 Readonly::Scalar my $VERSION => '20220124.0';
 
+use Podman;
 use Podman::Exception;
 
 ### API connection Url. Possible connections are via UNIX socket (default) or
 ### tcp connection.
 ###
 ###     * http+unix
-###     * https+unix
 ###     * http
 ###     * https
-has 'ConnectionUrl' => (
-    is      => 'ro',
+has 'Connection' => (
+    is      => 'rw',
     isa     => 'Str',
     lazy    => 1,
-    builder => '_BuildConnectionUrl',
+    builder => '_BuildConnection',
 );
 
 ### API connection timeout, default `3600 seconds`.
@@ -65,49 +65,40 @@ has 'UserAgent' => (
 );
 
 ### API request Url depends on connection Url and Podman service version.
-has 'RequestUrl' => (
+has 'RequestBase' => (
     is       => 'ro',
     isa      => 'Mojo::URL',
-    lazy     => 1,
-    builder  => '_BuildRequestUrl',
+    builder  => '_BuildRequestBase',
     init_arg => undef,
 );
 
-### API client identification.
-has 'UserAgentName' => (
-    is       => 'ro',
-    isa      => 'Str',
-    lazy     => 1,
-    builder  => '_BuildUserAgentName',
-    init_arg => undef,
-);
-
-sub _BuildUserAgentName {
-    my $Self = shift;
-
-    return sprintf "Podman::Perl/%s", $VERSION;
-}
-
-sub _BuildConnectionUrl {
+sub _BuildConnection {
     my $Self = shift;
 
     return sprintf "http+unix://%s/podman/podman.sock",
       $ENV{XDG_RUNTIME_DIR} ? $ENV{XDG_RUNTIME_DIR} : '/tmp';
 }
 
-sub _BuildRequestUrl {
+sub _BuildRequestBase {
     my $Self = shift;
 
-    my $Scheme = Mojo::URL->new( $Self->ConnectionUrl )->scheme();
+    my $Scheme = Mojo::URL->new( $Self->Connection )->scheme();
 
     my $RequestBaseUrl =
-      $Scheme =~ m{unix$} ? 'http://d/' : $Self->ConnectionUrl;
+      $Scheme eq 'http+unix' ? 'http://d/' : $Self->Connection;
 
-    my $Transaction =
-      $Self->UserAgent->get( Mojo::URL->new($RequestBaseUrl)->path('version') );
+    my $Transaction;
+    my $Tries = 3;
+    while ( $Tries-- ) {
+        $Transaction = $Self->UserAgent->get(
+            Mojo::URL->new($RequestBaseUrl)->path('version') );
+        last if $Transaction->res->is_success;
+    }
+    return Podman::Exception->new( Code => 0, )->throw()
+      if !$Transaction->res->is_success;
 
     my $JSON = $Transaction->res->json;
-    my $Path = sprintf "v%s/libpod", $JSON->{Version};
+    my $Path = sprintf "v%s/libpod/", $JSON->{Version};
 
     return Mojo::URL->new($RequestBaseUrl)->path($Path);
 }
@@ -118,21 +109,16 @@ sub _BuildUserAgent {
     my $UserAgent = Mojo::UserAgent->new(
         connect_timeout    => 10,
         inactivity_timeout => $Self->Timeout,
+        insecure           => 1,
     );
-    $UserAgent->transactor->name( $Self->UserAgentName );
+    $UserAgent->transactor->name( sprintf "podman-perl/%s", $Podman::VERSION );
 
-    my $ConnectionUrl = Mojo::URL->new( $Self->ConnectionUrl );
-    my $Scheme        = $ConnectionUrl->scheme();
+    my $Connection = Mojo::URL->new( $Self->Connection );
+    my $Scheme     = $Connection->scheme();
 
-    if ( $Scheme =~ m{unix$} ) {
-        my $Path = Mojo::Util::url_escape( $ConnectionUrl->path() );
-
-        if ( $Scheme =~ m{^https} ) {
-            $UserAgent->proxy->https( sprintf "https+unix://%s", $Path );
-        }
-        else {
-            $UserAgent->proxy->http( sprintf "http+unix://%s", $Path );
-        }
+    if ( $Scheme eq 'http+unix' ) {
+        my $Path = Mojo::Util::url_escape( $Connection->path() );
+        $UserAgent->proxy->http( sprintf "%s://%s", $Scheme, $Path );
     }
 
     return $UserAgent;
@@ -141,10 +127,10 @@ sub _BuildUserAgent {
 sub _MakeUrl {
     my ( $Self, $Path, $Parameters ) = @_;
 
-    my $Url = Mojo::URL->new( $Self->RequestUrl )->path($Path);
+    my $Url = Mojo::URL->new( $Self->RequestBase )->path($Path);
 
     if ($Parameters) {
-        $Url = Mojo::URL->new($Url)->query($Parameters);
+        $Url->query($Parameters);
     }
 
     return $Url;
@@ -153,22 +139,16 @@ sub _MakeUrl {
 sub _HandleTransaction {
     my ( $Self, $Transaction ) = @_;
 
-    my $Content = try { $Transaction->res->json; };
-    $Content //= $Transaction->res->body;
-
     if ( !$Transaction->res->is_success ) {
-        if ( ref $Content ne 'HASH' ) {
-            return Podman::Exception->new(
-                Message => $Content,
-                Cause   => $Content,
-            )->throw();
-        }
-
-        return Podman::Exception->new(
-            Message => $Content->{message},
-            Cause   => $Content->{cause},
-        )->throw();
+        return Podman::Exception->new( Code => $Transaction->res->code )
+          ->throw();
     }
+
+    my $Content =
+      ( lc $Transaction->res->headers->content_type || '' ) eq
+      'application/json'
+      ? $Transaction->res->json
+      : $Transaction->res->body;
 
     return $Content;
 }

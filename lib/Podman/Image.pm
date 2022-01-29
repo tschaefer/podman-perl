@@ -9,7 +9,7 @@ use utf8;
 use Moose;
 
 use Archive::Tar;
-use Cwd ();
+use Cwd            ();
 use File::Basename ();
 use File::Temp     ();
 use Path::Tiny;
@@ -19,14 +19,14 @@ use Podman::Client;
 
 ### [Podman::Client](Client.html) API connector.
 has 'Client' => (
-    is       => 'ro',
-    isa      => 'Podman::Client',
+    is      => 'ro',
+    isa     => 'Podman::Client',
     lazy    => 1,
     default => sub { return Podman::Client->new() },
 );
 
-### Image identifier, short identifier or name.
-has 'Id' => (
+### Image name.
+has 'Name' => (
     is       => 'ro',
     isa      => 'Str',
     required => 1,
@@ -73,7 +73,7 @@ sub Build {
 
     return __PACKAGE__->new(
         Client => $Client,
-        Id     => $Name,
+        Name   => $Name,
     );
 }
 
@@ -99,59 +99,34 @@ sub Pull {
 
     return __PACKAGE__->new(
         Client => $Client,
-        Id     => $Name,
+        Name   => $Name,
     );
 }
 
-### Export image's filesystem contents as a tar archive and write into given
-### file. Optional data may be compressed.
-sub Export {
-    my ( $Self, $File, $Compress ) = @_;
-
-    my $Data = $Self->Client->Get(
-        (sprintf "images/%s/get", $Self->Id),
-        Parameters => {
-            compress => $Compress ? 1 : 0,
-        }
-    );
-
-    return if !$Data;
-
-    return path($File)->spew($Data);
-}
-
-### Show the history of the image by printing out information about each
-### layer used.
-sub History {
-    my $Self = shift;
-
-    return $Self->Client->Get( sprintf "images/%s/history", $Self->Id );
-}
-
-### Display image configuration.
 sub Inspect {
     my $Self = shift;
 
-    return $Self->Client->Get( sprintf "images/%s/json", $Self->Id );
-}
+    my $Data = $Self->Client->Get( sprintf "images/%s/json", $Self->Name );
 
-### Push image to given destination registry.
-sub Push {
-    my ( $Self, $Destination ) = @_;
+    my ($Tag) = $Data->{RepoTags}->[0] =~ m{.+:(.+)};
 
-    return $Self->Client->Post(
-        (sprintf "images/%s/push", $Destination),
-        Parameters => {
-            destination => $Destination,
-        }
+    my %Inspect = (
+        Tag     => $Tag,
+        Id      => $Data->{Id},
+        Created => $Data->{Created},
+        Size    => $Data->{Size}
     );
+
+    return \%Inspect;
 }
 
 ### Remove image from local store.
 sub Remove {
     my ( $Self, $Force ) = @_;
 
-    return $Self->Client->Delete( sprintf "images/%s", $Self->Id );
+    $Self->Client->Delete( sprintf "images/%s", $Self->Name );
+
+    return 1;
 }
 
 __PACKAGE__->meta->make_immutable;
