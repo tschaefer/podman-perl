@@ -2,10 +2,7 @@ package Podman::Exception;
 
 ##! Simple generic exception class.
 ##!
-##!     Podman::Exception->new(
-##!         Message => 'Human error description',
-##!         Cause   => 'API root cause',
-##!     );
+##!     Podman::Exception->new( Code => 404 );
 ##!
 ##! Exception is thrown on API request failure.
 
@@ -18,24 +15,43 @@ with qw(Throwable);
 
 use overload '""' => 'AsString';
 
-### Human error description.
+### API error description.
 has 'Message' => (
-    is => 'ro',
+    is => 'rw',
     isa => 'Str',
+    default => '',
+);
+
+### API (HTTP) code.
+has 'Code' => (
+    is => 'ro',
+    isa => 'Int',
     required => 1,
 );
 
-### API root cause.
-has 'Cause' => (
-    is => 'ro',
-    isa => 'Maybe[Str]',
-);
+### #[ignore(item)]
+sub BUILD {
+    my $Self = shift;
+
+    my %Messages = (
+        0   => 'Connection failed.',
+        304 => 'Action already processing.',
+        400 => 'Bad parameter in request.',
+        404 => 'No such item.',
+        409 => 'Conflict error in operation.',
+        500 => 'Internal server error.',
+    );
+
+    $Self->Message($Messages{$Self->Code} || 'Unknown error.');
+
+    return;
+}
 
 ### #[ignore(item)]
 sub AsString {
     my $Self = shift;
 
-    return $Self->Message;
+    return sprintf "%s (%d)", $Self->Message, $Self->Code;
 }
 
 __PACKAGE__->meta->make_immutable;
