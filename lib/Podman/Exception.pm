@@ -1,11 +1,5 @@
 package Podman::Exception;
 
-##! Simple generic exception class.
-##!
-##!     Podman::Exception->new( Code => 404 );
-##!
-##! Exception is thrown on API request failure.
-
 use strict;
 use warnings;
 use utf8;
@@ -15,21 +9,18 @@ with qw(Throwable);
 
 use overload '""' => 'AsString';
 
-### API error description.
 has 'Message' => (
     is => 'rw',
     isa => 'Str',
     default => '',
 );
 
-### API (HTTP) code.
 has 'Code' => (
     is => 'ro',
     isa => 'Int',
     required => 1,
 );
 
-### #[ignore(item)]
 sub BUILD {
     my $Self = shift;
 
@@ -47,7 +38,6 @@ sub BUILD {
     return;
 }
 
-### #[ignore(item)]
 sub AsString {
     my $Self = shift;
 
@@ -99,6 +89,13 @@ Readonly human readable exception message. The message is related to the
 C<Code>.
 
 =head1 METHODS
+
+=head2 throw
+
+    Podman::Exception->throw( Code => 500 );
+
+This method will call new, passing all arguments along to new, and will then
+use the created object as the only argument to "die".
 
 =head1 AUTHORS
 

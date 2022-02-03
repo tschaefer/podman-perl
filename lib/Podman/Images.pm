@@ -83,8 +83,7 @@ L<Podman::Images> lists images and prunes unused ones.
 
 =head2 Client
 
-    my $Client = Podman::Client->new(
-        Connection => 'http+unix:///var/cache/podman.sock' );
+    my $Client = Podman::Client->new( Connection => 'http+unix:///var/cache/podman.sock' );
     my $Images = Podman::Images->new( Client => $Client );
 
 Optional L<Podman::Client> object.

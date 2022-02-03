@@ -155,8 +155,7 @@ Unique image name or other identifier.
 
 =head2 Client
 
-    my $Client = Podman::Client->new(
-        Connection => 'http+unix:///var/cache/podman.sock' );
+    my $Client = Podman::Client->new( Connection => 'http+unix:///var/cache/podman.sock' );
     my $Container = Podman::Container->new( Client => $Client );
 
 Optional L<Podman::Client> object.

@@ -220,7 +220,7 @@ Podman::Client - API client.
 =head1 DESCRIPTION
 
 L<Podman::Client> is a HTTP client (user agent) based on L<Mojo::UserAgent>
-with the needed support to connect to and query the L<http://podman.io> API.
+with the needed support to connect to and query the L<https://podman.io> API.
 
 =head1 ATTRIBUTES
 

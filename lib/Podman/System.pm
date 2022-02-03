@@ -85,8 +85,7 @@ L<Podman::Service> provides system level information for a Podman service.
 
 =head2 Client
 
-    my $Client = Podman::Client->new(
-        Connection => 'http+unix:///var/cache/podman.sock' );
+    my $Client = Podman::Client->new( Connection => 'http+unix:///var/cache/podman.sock' );
     my $Images = Podman::Images->new( Client => $Client );
 
 Optional L<Podman::Client> object.

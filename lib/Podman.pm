@@ -33,8 +33,8 @@ Podman - Library of bindings to use the RESTful API of L<https://podman.io>.
 
 =head1 DESCRIPTION
 
-L<Podman> is a library of bindings to use the RESTful API of L<Podman>. It is
-currently under development and contributors are welcome!
+L<Podman> is a library of bindings to use the RESTful API of L<https://podman.io>.
+It is currently under development and contributors are welcome!
 
 =head1 AUTHORS
 
