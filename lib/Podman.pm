@@ -4,7 +4,7 @@ use strict;
 use warnings;
 use utf8;
 
-our $VERSION = '20220129.0';
+our $VERSION = '20220203.0';
 
 1;
 
