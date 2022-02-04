@@ -154,6 +154,29 @@ __DATA__
 {
   "ok": true
 }
+@@GET/v3.0.1/libpod/containers/stats.json.ep
+{
+  "Error": null,
+  "Stats": [
+    {
+      "BlockInput": 0,
+      "BlockOutput": 0,
+      "ContainerID":  "e2205f56fbcb5891d0f4066d7fd32dbe8cb8d5e3e03a6a9474d974cd4c03c622",
+      "CPU": 1.2368915569887e-09,
+      "CPUNano": 20334000,
+      "CPUSystemNano": 16267,
+      "MemLimit": 16428355584,
+      "MemPerc": 0.0439310676171934,
+      "MemUsage": 7217152,
+      "Name": "hello",
+      "NetInput": 0,
+      "NetOutput": 0,
+      "PerCPU": null,
+      "PIDs": 9,
+      "SystemNano": 1643959802709351726
+    }
+  ]
+}
 @@exception.development.json.ep
 {
   "message": "Not found."

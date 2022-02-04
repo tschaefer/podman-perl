@@ -7,6 +7,7 @@ use utf8;
 use Moose;
 
 use Scalar::Util;
+use List::Util ();
 
 use Podman::Client;
 use Podman::Image;
@@ -67,7 +68,8 @@ sub Delete {
 sub Inspect {
     my $Self = shift;
 
-    my $Data = $Self->Client->Get( sprintf "containers/%s/json", $Self->Name )->json;
+    my $Data =
+      $Self->Client->Get( sprintf "containers/%s/json", $Self->Name )->json;
 
     my $State = $Data->{State}->{Status};
     $State = $State eq 'configured' ? 'created' : $State;
@@ -107,6 +109,35 @@ sub Start {
     $Self->Client->Post( sprintf "containers/%s/start", $Self->Name );
 
     return 1;
+}
+
+sub Stats {
+    my $Self = shift;
+
+    my $Data = $Self->Client->Get(
+        "containers/stats",
+        Parameters => {
+            stream => 0,
+        }
+    )->json;
+
+    my $Stats =
+      List::Util::first { $_->{Name} eq $Self->Name } @{ $Data->{Stats} };
+    return if !$Stats;
+
+    my %Stats = (
+        CpuPercent => $Stats->{CPU},
+        MemUsage   => $Stats->{MemUsage},
+        MemPercent => $Stats->{MemPerc},
+        NetIO      =>
+          ( sprintf "%d / %d", $Stats->{NetInput}, $Stats->{NetOutput}, ),
+        BlockIO => (
+            sprintf "%d / %d", $Stats->{BlockInput}, $Stats->{BlockOutput},
+        ),
+        PIDs => $Stats->{PIDs},
+    );
+
+    return \%Stats;
 }
 
 sub Stop {
@@ -189,11 +220,20 @@ Return advanced container information.
 
 Send signal to container, defaults to 'SIGTERM'.
 
-=head2 Stop
+=head2 Start
 
     $Container->Start();
 
 Start stopped container.
+
+=head2 Stats
+
+    my $Stats = $Container->Stats();
+    for my $Property (keys %{$Stats}) {
+        printf "%s: %s\n", $Property, $Stats->{$Property};
+    }
+
+Return current usage statistics of running container.
 
 =head2 Stop
 

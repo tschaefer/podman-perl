@@ -47,7 +47,7 @@ sub Prune {
 
     $Self->Client->Post('containers/prune');
 
-    return 1; 
+    return 1;
 }
 
 

@@ -41,6 +41,17 @@ is( ref $ActualData->{Image}, 'Podman::Image', 'Container image ok.' );
 delete $ActualData->{Image};
 is_deeply( $ActualData, $ExpectedData, 'Inspect response ok.' );
 
+$ExpectedData = {
+    "BlockIO"    => "0 / 0",
+    "CpuPercent" => 1.2368915569887e-09,
+    "MemPercent" => 0.0439310676171934,
+    "MemUsage"   => 7217152,
+    "NetIO"      => "0 / 0",
+    "PIDs"       => 9,
+};
+$ActualData = $Container->Stats();
+is_deeply( $ActualData, $ExpectedData, 'Stats response ok.' );
+
 ok( $Container->Start(),  'Container start ok.' );
 ok( $Container->Stop(),   'Container stop ok.' );
 ok( $Container->Kill(),   'Container kill ok.' );
