@@ -208,6 +208,14 @@ Optional L<Podman::Client> object.
 Create named container by given image name. Optional arguments are
 L<Podman::Client> object and further container options.
 
+=head2 Delete
+
+    $Container->Delete();
+    $Container->Delete(1);
+
+Delete stopped container. Takes force as argument to delete even running
+container.
+
 =head2 Inspect
 
     my $Info = $Container->Inspect();
