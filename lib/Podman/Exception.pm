@@ -29,6 +29,7 @@ sub BUILD {
         304 => 'Action already processing.',
         400 => 'Bad parameter in request.',
         404 => 'No such item.',
+        405 => 'Bad request.',
         409 => 'Conflict error in operation.',
         500 => 'Internal server error.',
     );
