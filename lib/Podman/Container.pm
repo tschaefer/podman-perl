@@ -25,6 +25,14 @@ has 'Name' => (
     required => 1,
 );
 
+sub BUILD {
+    my $Self = shift;
+
+    $Self->Client->Get(sprintf "containers/%s/exists", $Self->Name);
+
+    return;
+}
+
 sub Create {
     my ( $Package, $Name, $Image, $Client, %Options ) = @_;
 

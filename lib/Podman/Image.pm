@@ -28,6 +28,14 @@ has 'Name' => (
     required => 1,
 );
 
+sub BUILD {
+    my $Self = shift;
+
+    $Self->Client->Get(sprintf "images/%s/exists", $Self->Name);
+
+    return;
+}
+
 sub Build {
     my ( $Package, $Name, $File, $Client ) = @_;
 

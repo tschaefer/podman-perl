@@ -9,6 +9,14 @@ use Mojo::Base 'Mojolicious::Controller';
 sub Any {
     my $Self = shift;
 
+    if ( $Self->stash('route') =~ m{exists$} ) {
+        return $Self->render(
+            variant => $Self->app->mode,
+            status  => 204,
+            json    => '{ "ok": true }',
+        );
+    }
+
     return $Self->render(
         template => join( '/', uc $Self->req->method, $Self->stash('route') ),
         variant  => $Self->app->mode,

@@ -45,7 +45,6 @@ sub Version {
 
     $Self = __PACKAGE__->new() if !Scalar::Util::blessed($Self);
 
-
     my $Data = $Self->Client->Get('info')->json;
 
     my $Version = $Data->{version};
