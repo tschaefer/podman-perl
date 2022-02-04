@@ -23,7 +23,7 @@ sub DiskUsage {
 
     $Self = __PACKAGE__->new() if !Scalar::Util::blessed($Self);
 
-    my $Data = $Self->Client->Get('system/df');
+    my $Data = $Self->Client->Get('system/df')->json;
 
     my %DiskUsage;
     for my $Type (qw(Volumes Containers Images)) {
@@ -46,7 +46,7 @@ sub Version {
     $Self = __PACKAGE__->new() if !Scalar::Util::blessed($Self);
 
 
-    my $Data = $Self->Client->Get('info');
+    my $Data = $Self->Client->Get('info')->json;
 
     my $Version = $Data->{version};
     delete $Version->{GitCommit};

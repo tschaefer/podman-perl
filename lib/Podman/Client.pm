@@ -73,17 +73,17 @@ sub _BuildBaseURI {
 
     my $Scheme = Mojo::URL->new( $Self->ConnectionURI )->scheme();
 
-    my $BaseURI =
-      $Scheme eq 'http+unix' ? 'http://d/' : $Self->ConnectionURI;
+    my $BaseURI = $Scheme eq 'http+unix' ? 'http://d/' : $Self->ConnectionURI;
 
     my $Transaction;
     my $Tries = 3;
     while ( $Tries-- ) {
-        $Transaction = $Self->UserAgent->get(
-            Mojo::URL->new($BaseURI)->path('version') );
+        $Transaction =
+          $Self->UserAgent->get( Mojo::URL->new($BaseURI)->path('version') );
         last if $Transaction->res->is_success;
+        sleep 1;
     }
-    return Podman::Exception->new( Code => 0, )->throw()
+    return Podman::Exception->throw( Code => 0, )
       if !$Transaction->res->is_success;
 
     my $JSON = $Transaction->res->json;
@@ -103,7 +103,7 @@ sub _BuildUserAgent {
     $UserAgent->transactor->name( sprintf "podman-perl/%s", $Podman::VERSION );
 
     my $ConnectionURI = Mojo::URL->new( $Self->ConnectionURI );
-    my $Scheme     = $ConnectionURI->scheme();
+    my $Scheme        = $ConnectionURI->scheme();
 
     if ( $Scheme eq 'http+unix' ) {
         my $Path = Mojo::Util::url_escape( $ConnectionURI->path() );
@@ -125,21 +125,14 @@ sub _MakeUrl {
     return $Url;
 }
 
-sub _HandleTransaction {
+sub _VerifyTransaction {
     my ( $Self, $Transaction ) = @_;
 
     if ( !$Transaction->res->is_success ) {
-        return Podman::Exception->new( Code => $Transaction->res->code )
-          ->throw();
+        return Podman::Exception->throw( Code => $Transaction->res->code );
     }
 
-    my $Content =
-      ( lc $Transaction->res->headers->content_type || '' ) eq
-      'application/json'
-      ? $Transaction->res->json
-      : $Transaction->res->body;
-
-    return $Content;
+    return $Transaction->res;
 }
 
 sub Get {
@@ -151,7 +144,7 @@ sub Get {
     );
     $Transaction = $Self->UserAgent->start($Transaction);
 
-    return $Self->_HandleTransaction($Transaction);
+    return $Self->_VerifyTransaction($Transaction);
 }
 
 sub Post {
@@ -177,7 +170,7 @@ sub Post {
 
     $Transaction = $Self->UserAgent->start($Transaction);
 
-    return $Self->_HandleTransaction($Transaction);
+    return $Self->_VerifyTransaction($Transaction);
 }
 
 sub Delete {
@@ -189,7 +182,7 @@ sub Delete {
     );
     $Transaction = $Self->UserAgent->start($Transaction);
 
-    return $Self->_HandleTransaction($Transaction);
+    return $Self->_VerifyTransaction($Transaction);
 }
 
 __PACKAGE__->meta->make_immutable;

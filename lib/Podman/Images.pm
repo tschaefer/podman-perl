@@ -28,7 +28,7 @@ sub List {
         Parameters => {
             all => 1
         },
-    );
+    )->json;
 
     my @List = ();
     @List =

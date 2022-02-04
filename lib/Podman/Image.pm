@@ -97,7 +97,7 @@ sub Pull {
 sub Inspect {
     my $Self = shift;
 
-    my $Data = $Self->Client->Get( sprintf "images/%s/json", $Self->Name );
+    my $Data = $Self->Client->Get( sprintf "images/%s/json", $Self->Name )->json;
 
     my ($Tag) = $Data->{RepoTags}->[0] =~ m{.+:(.+)};
 
@@ -105,7 +105,7 @@ sub Inspect {
         Tag     => $Tag,
         Id      => $Data->{Id},
         Created => $Data->{Created},
-        Size    => $Data->{Size}
+        Size    => $Data->{Size},
     );
 
     return \%Inspect;

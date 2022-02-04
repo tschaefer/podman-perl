@@ -67,7 +67,7 @@ sub Delete {
 sub Inspect {
     my $Self = shift;
 
-    my $Data = $Self->Client->Get( sprintf "containers/%s/json", $Self->Name );
+    my $Data = $Self->Client->Get( sprintf "containers/%s/json", $Self->Name )->json;
 
     my $State = $Data->{State}->{Status};
     $State = $State eq 'configured' ? 'created' : $State;
@@ -102,7 +102,7 @@ sub Kill {
 }
 
 sub Start {
-    my ( $Self, $Name ) = @_;
+    my $Self = shift;
 
     $Self->Client->Post( sprintf "containers/%s/start", $Self->Name );
 
@@ -110,7 +110,7 @@ sub Start {
 }
 
 sub Stop {
-    my ( $Self, $Name ) = @_;
+    my $Self = shift;
 
     $Self->Client->Post( sprintf "containers/%s/stop", $Self->Name );
 
