@@ -50,12 +50,14 @@ sub Prune {
 
     $Self->Client->Post('images/prune');
 
-    return 1; 
+    return 1;
 }
 
 __PACKAGE__->meta->make_immutable;
 
 1;
+
+__END__
 
 =encoding utf8
 

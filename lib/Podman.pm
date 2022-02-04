@@ -8,6 +8,8 @@ our $VERSION = '20220203.0';
 
 1;
 
+__END__
+
 =encoding utf8
 
 =head1 NAME
