@@ -75,4 +75,12 @@ sub Stop {
     return;
 }
 
+sub DESTROY {
+    my $Self = shift;
+
+    $Self->Stop();
+
+    return;
+}
+
 1;
