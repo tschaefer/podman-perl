@@ -1,162 +1,108 @@
 package Podman::Container;
 
-use strict;
-use warnings;
-use utf8;
+use Mojo::Base 'Podman::Client';
 
-use Moose;
+use Exporter qw(import);
+use List::Util qw(first);
 
-use Scalar::Util;
-use List::Util ();
-
-use Podman::Client;
 use Podman::Image;
 
-has 'Client' => (
-    is      => 'ro',
-    isa     => 'Podman::Client',
-    lazy    => 1,
-    default => sub { return Podman::Client->new() },
-);
+our @EXPORT_OK = qw(create);
 
-has 'Name' => (
-    is       => 'ro',
-    isa      => 'Str',
-    required => 1,
-);
+has 'name' => sub { return '' };
 
-sub BUILD {
-    my $Self = shift;
+sub create {
+  my ($name, $image, %options) = @_;
 
-    $Self->Client->Get(sprintf "containers/%s/exists", $Self->Name);
+  my $self = __PACKAGE__->new;
 
-    return;
+  $self->post(
+    'containers/create',
+    data    => {image          => ref $image eq 'Podman::Image' ? $image->name : $image, name => $name, %options},
+    headers => {'Content-Type' => 'application/json'}
+  );
+
+  return $self->name($name);
 }
 
-sub Create {
-    my ( $Package, $Name, $Image, $Client, %Options ) = @_;
+sub inspect {
+  my $self = shift;
 
-    return if Scalar::Util::blessed($Package);
+  my $data = $self->get(sprintf "containers/%s/json", $self->name)->json;
 
-    $Client //= Podman::Client->new();
+  my $state = $data->{State}->{Status};
+  $state = $state eq 'configured' ? 'created' : $state;
+  my %inspect = (
+    Id      => $data->{Id},
+    Image   => Podman::Image->new(name => $data->{ImageName}),
+    Created => $data->{Created},
+    Status  => $state,
+    Cmd     => $data->{Config}->{Cmd},
+    Ports   => $data->{HostConfig}->{PortBindings},
+  );
 
-    my $Response = $Client->Post(
-        'containers/create',
-        Data => {
-            image => $Image,
-            name  => $Name,
-            %Options
-        },
-        Headers => {
-            'Content-Type' => 'application/json'
-        }
-    );
-
-    return if !$Response;
-
-    return __PACKAGE__->new(
-        Client => $Client,
-        Name   => $Name,
-    );
+  return \%inspect;
 }
 
-sub Delete {
-    my ( $Self, $Force ) = @_;
+sub kill {
+  my ($self, $signal) = @_;
 
-    $Self->Client->Delete(
-        ( sprintf "containers/%s", $Self->Name ),
-        Parameters => {
-            force => $Force,
-        }
-    );
+  $signal //= 'SIGTERM';
 
-    return 1;
+  $self->post((sprintf "containers/%s/kill", $self->name), parameters => {signal => $signal,},);
+
+  return 1;
 }
 
-sub Inspect {
-    my $Self = shift;
+sub remove {
+  my ($self, $force) = @_;
 
-    my $Data =
-      $Self->Client->Get( sprintf "containers/%s/json", $Self->Name )->json;
+  $self->delete((sprintf "containers/%s", $self->name), parameters => {force => $force,});
 
-    my $State = $Data->{State}->{Status};
-    $State = $State eq 'configured' ? 'created' : $State;
-    my %Inspect = (
-        Id    => $Data->{Id},
-        Image => Podman::Image->new(
-            Name   => $Data->{ImageName},
-            Client => $Self->Client
-        ),
-        Created => $Data->{Created},
-        Status  => $State,
-        Cmd     => $Data->{Config}->{Cmd},
-        Ports   => $Data->{HostConfig}->{PortBindings},
-    );
-
-    return \%Inspect;
+  return 1;
 }
 
-sub Kill {
-    my ( $Self, $Signal ) = @_;
+sub stats {
+  my $self = shift;
 
-    $Signal //= 'SIGTERM';
+  my $data = $self->get('containers/stats', parameters => {stream => 0,})->json;
 
-    $Self->Client->Post(
-        ( sprintf "containers/%s/kill", $Self->Name ),
-        Parameters => {
-            signal => $Signal,
-        },
-    );
+  my $stats = first { $_->{Name} eq $self->name } @{$data->{Stats}};
+  return if !$stats;
 
-    return 1;
+  my %stats = (
+    CpuPercent => $stats->{CPU},
+    MemUsage   => $stats->{MemUsage},
+    MemPercent => $stats->{MemPerc},
+    NetIO      => (sprintf "%d / %d", $stats->{NetInput},   $stats->{NetOutput},),
+    BlockIO    => (sprintf "%d / %d", $stats->{BlockInput}, $stats->{BlockOutput},),
+    PIDs       => $stats->{PIDs},
+  );
+
+  return \%stats;
 }
 
-sub Start {
-    my $Self = shift;
+sub systemd {
+  my $self = shift;
 
-    $Self->Client->Post( sprintf "containers/%s/start", $Self->Name );
+  my $data = $self->get(sprintf "generate/%s/systemd", $self->name)->json;
 
-    return 1;
+  return (values %{$data})[0];
 }
 
-sub Stats {
-    my $Self = shift;
+for my $name (qw(pause restart start stop unpause)) {
+  Mojo::Util::monkey_patch(
+    __PACKAGE__,
+    $name,
+    sub {
+      my $self = shift;
 
-    my $Data = $Self->Client->Get(
-        "containers/stats",
-        Parameters => {
-            stream => 0,
-        }
-    )->json;
+      $self->post(sprintf "containers/%s/%s", $self->name, $name);
 
-    my $Stats =
-      List::Util::first { $_->{Name} eq $Self->Name } @{ $Data->{Stats} };
-    return if !$Stats;
-
-    my %Stats = (
-        CpuPercent => $Stats->{CPU},
-        MemUsage   => $Stats->{MemUsage},
-        MemPercent => $Stats->{MemPerc},
-        NetIO      =>
-          ( sprintf "%d / %d", $Stats->{NetInput}, $Stats->{NetOutput}, ),
-        BlockIO => (
-            sprintf "%d / %d", $Stats->{BlockInput}, $Stats->{BlockOutput},
-        ),
-        PIDs => $Stats->{PIDs},
-    );
-
-    return \%Stats;
+      return 1;
+    }
+  );
 }
-
-sub Stop {
-    my $Self = shift;
-
-    $Self->Client->Post( sprintf "containers/%s/stop", $Self->Name );
-
-    return 1;
-}
-
-__PACKAGE__->meta->make_immutable;
 
 1;
 
@@ -166,96 +112,118 @@ __END__
 
 =head1 NAME
 
-Podman::Container - Contol container.
+Podman::Container - Create and control container.
 
 =head1 SYNOPSIS
 
     # Create container
-    my $Container = Podman::Container->Create('nginx', 'docker.io/library/nginx');
+    my $container = Podman::Container::create('nginx', 'docker.io/library/nginx');
 
     # Start container
-    $Container->Start();
+    $container->start();
 
     # Stop container
-    $Container->Stop();
+    $container->stop();
 
     # Kill container
-    $Container->Kill();
+    $container->kill();
 
 =head1 DESCRIPTION
+
+=head2 Inheritance
+
+    Podman::Containers
+        isa Podman::Client
 
 L<Podman::Container> provides functionallity to control a container.
 
 =head1 ATTRIBUTES
 
-=head2 Name
+L<Podman::Container> implements following attributes.
 
-    my $Container = Podman::Image->new( Name => 'my_container' );
+=head2 name
+
+    my $container = Podman::Container->new();
+    $container->name('docker.io/library/hello-world');
 
 Unique image name or other identifier.
 
-=head2 Client
+=head1 FUNCTIONS
 
-    my $Client = Podman::Client->new( Connection => 'http+unix:///var/cache/podman.sock' );
-    my $Container = Podman::Container->new( Client => $Client );
+L<Podman::Image> implements the following functions, which can be imported individually.
 
-Optional L<Podman::Client> object.
+=head2 create
 
-=head1 METHODS
-
-=head2 Create
-
-    my $Container = Podman::Container->Create(
+    use Podman::Container qw(create);
+    my $container = create(
         'nginx',
         'docker.io/library/nginx',
-        undef,
         tty         => 1,
         interactive => 1,
     );
 
-Create named container by given image name. Optional arguments are
-L<Podman::Client> object and further container options.
+Create named container by given image <Podman::Image> object or name and additional create options.
 
-=head2 Delete
+=head1 METHODS
 
-    $Container->Delete();
-    $Container->Delete(1);
+L<Podman::Container> implements following methods.
 
-Delete stopped container. Takes force as argument to delete even running
-container.
+=head2 inspect
 
-=head2 Inspect
-
-    my $Info = $Container->Inspect();
+    my $Info = $container->inspect;
 
 Return advanced container information.
 
-=head2 Kill
+=head2 kill
 
-    $Container->Kill('SIGKILL');
+    $container->kill('SIGKILL');
 
 Send signal to container, defaults to 'SIGTERM'.
 
-=head2 Start
+=head2 pause
 
-    $Container->Start();
+    $container->pause;
+
+Pause running container.
+
+=head2 remove
+
+    $container->Delete(1);
+
+Remove stopped container. Takes additional argument force to remove even running container.
+
+=head2 start
+
+    $container->start;
 
 Start stopped container.
 
-=head2 Stats
+=head2 stats
 
-    my $Stats = $Container->Stats();
-    for my $Property (keys %{$Stats}) {
-        printf "%s: %s\n", $Property, $Stats->{$Property};
+    my $stats = $container->stats;
+    for my $property (keys %{$stats}) {
+        printf "%s: %s\n", $property, $stats->{$property};
     }
 
 Return current usage statistics of running container.
 
-=head2 Stop
+=head2 stop
 
-    $Container->Stop();
+    $container->stop;
 
 Stop running container.
+
+=head2 systemd
+
+    my $unit = $container->systemd;
+
+Generate unit file to supervise container by systemd.
+
+=head2 unpause
+
+    $container->unpause;
+
+Resume paused container.
 
 =head1 AUTHORS
 
@@ -269,7 +237,7 @@ Tobias Schäfer, <tschaefer@blackox.org>
 
 Copyright (C) 2022-2022, Tobias Schäfer.
 
-This program is free software, you can redistribute it and/or modify it under
-the terms of the Artistic License version 2.0.
+This program is free software, you can redistribute it and/or modify it under the terms of the Artistic License version
+2.0.
 
 =cut
