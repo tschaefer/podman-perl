@@ -2,7 +2,7 @@ package Podman::Images;
 
 use Mojo::Base 'Podman::Client';
 
-use Mojo::Collection;
+use Mojo::Collection qw(c);
 use Scalar::Util qw(blessed);
 
 use Podman::Image;
@@ -19,13 +19,12 @@ sub list {
   }
 
   my $images = $self->get('images/json', parameters => {all => 1},)->json;
-
   my @list = map {
-    my ($name) = split /:/, $_->{Names}->[0] || 'none';
+    my ($name) = split /:/, $_->{Names}->[0] || $_->{Id};
     $self->names_only ? $name : Podman::Image->new(name => $name);
   } @{$images};
 
-  return Mojo::Collection->new(@list);
+  return c(@list);
 }
 
 sub prune {

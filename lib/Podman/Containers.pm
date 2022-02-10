@@ -2,7 +2,7 @@ package Podman::Containers;
 
 use Mojo::Base 'Podman::Client';
 
-use Mojo::Collection;
+use Mojo::Collection qw(c);
 use Scalar::Util qw(blessed);
 
 use Podman::Container;
@@ -18,14 +18,13 @@ sub list {
     $self->names_only($opts{names_only});
   }
 
-  my $images = $self->get('containers/json', parameters => {all => 1},)->json;
-
+  my $containers = $self->get('containers/json', parameters => {all => 1})->json;
   my @list = map {
-    my $name = $_->{Names}->[0] || 'none';
+    my $name = $_->{Names}->[0] || $_->{Id};
     $self->names_only ? $name : Podman::Container->new(name => $name);
-  } @{$images};
+  } @{$containers};
 
-  return Mojo::Collection->new(@list);
+  return c(@list);
 }
 
 sub prune {

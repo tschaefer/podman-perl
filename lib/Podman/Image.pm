@@ -28,7 +28,7 @@ sub build {
   $self->post(
     'build',
     data       => $archive_file,
-    parameters => {'file'         => path($file)->basename, 't' => $name, %options,},
+    parameters => {'file'         => path($file)->basename, 't' => $name, %options},
     headers    => {'Content-Type' => 'application/x-tar'},
   );
   $self->get(sprintf "images/%s/exists", $name);
@@ -43,7 +43,7 @@ sub pull {
 
   my $reference = sprintf "%s:%s", $name, $tag // 'latest';
 
-  $self->post('images/pull', parameters => {reference => $reference, tlsVerify => 1, %options,});
+  $self->post('images/pull', parameters => {reference => $reference, tlsVerify => 1, %options});
   $self->get(sprintf "images/%s/exists", $name);
 
   return $self->name($name);
@@ -53,18 +53,15 @@ sub inspect {
   my $self = shift;
 
   my $data = $self->get(sprintf "images/%s/json", $self->name)->json;
+  my $tag  = (split /:/, $data->{RepoTags}->[0])[1];
 
-  my $tag = (split /:/, $data->{RepoTags}->[0])[1];
-
-  my %inspect = (Tag => $tag, Id => $data->{Id}, Created => $data->{Created}, Size => $data->{Size},);
-
-  return \%inspect;
+  return {Tag => $tag, Id => $data->{Id}, Created => $data->{Created}, Size => $data->{Size}};
 }
 
 sub remove {
   my ($self, $force) = @_;
 
-  $self->delete('images', parameters => {images => $self->name, force => $force // 0,});
+  $self->delete('images', parameters => {images => $self->name, force => $force // 0});
 
   return 1;
 }

@@ -16,11 +16,8 @@ sub create {
 
   my $self = __PACKAGE__->new;
 
-  $self->post(
-    'containers/create',
-    data    => {image          => ref $image eq 'Podman::Image' ? $image->name : $image, name => $name, %options},
-    headers => {'Content-Type' => 'application/json'}
-  );
+  $self->post('containers/create',
+    data => {image => ref $image eq 'Podman::Image' ? $image->name : $image, name => $name, %options});
 
   return $self->name($name);
 }
@@ -28,20 +25,18 @@ sub create {
 sub inspect {
   my $self = shift;
 
-  my $data = $self->get(sprintf "containers/%s/json", $self->name)->json;
+  my $data   = $self->get(sprintf "containers/%s/json", $self->name)->json;
+  my $status = $data->{State}->{Status};
+  $status = $status eq 'configured' ? 'created' : $status;
 
-  my $state = $data->{State}->{Status};
-  $state = $state eq 'configured' ? 'created' : $state;
-  my %inspect = (
+  return {
     Id      => $data->{Id},
     Image   => Podman::Image->new(name => $data->{ImageName}),
     Created => $data->{Created},
-    Status  => $state,
+    Status  => $status,
     Cmd     => $data->{Config}->{Cmd},
     Ports   => $data->{HostConfig}->{PortBindings},
-  );
-
-  return \%inspect;
+  };
 }
 
 sub kill {
@@ -49,7 +44,7 @@ sub kill {
 
   $signal //= 'SIGTERM';
 
-  $self->post((sprintf "containers/%s/kill", $self->name), parameters => {signal => $signal,},);
+  $self->post((sprintf "containers/%s/kill", $self->name), parameters => {signal => $signal});
 
   return 1;
 }
@@ -57,7 +52,7 @@ sub kill {
 sub remove {
   my ($self, $force) = @_;
 
-  $self->delete((sprintf "containers/%s", $self->name), parameters => {force => $force,});
+  $self->delete((sprintf "containers/%s", $self->name), parameters => {force => $force});
 
   return 1;
 }
@@ -65,21 +60,18 @@ sub remove {
 sub stats {
   my $self = shift;
 
-  my $data = $self->get('containers/stats', parameters => {stream => 0,})->json;
-
+  my $data  = $self->get('containers/stats', parameters => {stream => 0})->json;
   my $stats = first { $_->{Name} eq $self->name } @{$data->{Stats}};
-  return if !$stats;
 
-  my %stats = (
+  return unless $stats;
+  return {
     CpuPercent => $stats->{CPU},
     MemUsage   => $stats->{MemUsage},
     MemPercent => $stats->{MemPerc},
-    NetIO      => (sprintf "%d / %d", $stats->{NetInput},   $stats->{NetOutput},),
-    BlockIO    => (sprintf "%d / %d", $stats->{BlockInput}, $stats->{BlockOutput},),
+    NetIO      => (sprintf "%d / %d", $stats->{NetInput},   $stats->{NetOutput}),
+    BlockIO    => (sprintf "%d / %d", $stats->{BlockInput}, $stats->{BlockOutput}),
     PIDs       => $stats->{PIDs},
-  );
-
-  return \%stats;
+  };
 }
 
 sub systemd {
@@ -91,17 +83,8 @@ sub systemd {
 }
 
 for my $name (qw(pause restart start stop unpause)) {
-  Mojo::Util::monkey_patch(
-    __PACKAGE__,
-    $name,
-    sub {
-      my $self = shift;
-
-      $self->post(sprintf "containers/%s/%s", $self->name, $name);
-
-      return 1;
-    }
-  );
+  Mojo::Util::monkey_patch(__PACKAGE__, $name,
+    sub { my $self = shift; $self->post(sprintf "containers/%s/%s", $self->name, $name); return 1; });
 }
 
 1;
