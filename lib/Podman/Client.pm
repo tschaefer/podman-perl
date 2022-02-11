@@ -2,7 +2,7 @@ package Podman::Client;
 
 use Mojo::Base -base;
 
-our $VERSION     = '20220210.0';
+our $VERSION     = '20220211.0';
 our $API_VERSION = '3.0.0';
 
 use English qw( -no_match_vars );
