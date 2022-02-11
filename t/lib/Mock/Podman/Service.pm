@@ -11,7 +11,7 @@ use Mojo::URL;
 
 has pid    => sub { return; };
 has listen => sub {
-  my $url = $ENV{PODMAN_CONNECTION_URL}
+  my $url = $ENV{PODMAN_CONNECTION}
     || ($UID != 0 ? "http+unix:///run/user/$UID/podman/podman.sock" : 'http+unix:///run/podman/podman.sock');
 
   return Mojo::URL->new($url);

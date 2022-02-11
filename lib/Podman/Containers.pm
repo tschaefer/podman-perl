@@ -79,6 +79,7 @@ L<Podman::Containers> implements following methods, which can be used as object 
 
 =head2 list
 
+    my $list = Podman::Containers->new->names_only(1)->list;
     my $list = Podman::Containers->list(names_only => 1);
 
 Returns a L<Mojo::Collection> of L<Podman::Container> objects or container names only of stored images. See attribute

@@ -79,6 +79,7 @@ L<Podman::System> implements following methods, which can be used as object or c
 
 =head2 list
 
+    my $list = Podman::Images->new->names_only(1)->list;
     my $list = Podman::Images->list(names_only => 1);
 
 Returns a L<Mojo::Collection> of L<Podman::Image> objects or image names only of stored images. See attribute

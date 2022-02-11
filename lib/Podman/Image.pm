@@ -31,7 +31,7 @@ sub build {
     parameters => {'file'         => path($file)->basename, 't' => $name, %options},
     headers    => {'Content-Type' => 'application/x-tar'},
   );
-  $self->get(sprintf "images/%s/exists", $name);
+  $self->get('images/' . $name . '/exists');
 
   return $self->name($name);
 }
@@ -41,10 +41,10 @@ sub pull {
 
   my $self = __PACKAGE__->new;
 
-  my $reference = sprintf "%s:%s", $name, $tag // 'latest';
+  my $reference = $name . ':' . $tag // 'latest';
 
   $self->post('images/pull', parameters => {reference => $reference, tlsVerify => 1, %options});
-  $self->get(sprintf "images/%s/exists", $name);
+  $self->get('images/' . $name . '/exists');
 
   return $self->name($name);
 }
@@ -52,7 +52,7 @@ sub pull {
 sub inspect {
   my $self = shift;
 
-  my $data = $self->get(sprintf "images/%s/json", $self->name)->json;
+  my $data = $self->get('images/' . $self->name . '/json')->json;
   my $tag  = (split /:/, $data->{RepoTags}->[0])[1];
 
   return {Tag => $tag, Id => $data->{Id}, Created => $data->{Created}, Size => $data->{Size}};

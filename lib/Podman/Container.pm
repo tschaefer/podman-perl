@@ -25,7 +25,7 @@ sub create {
 sub inspect {
   my $self = shift;
 
-  my $data   = $self->get(sprintf "containers/%s/json", $self->name)->json;
+  my $data   = $self->get('containers/' . $self->name . '/json')->json;
   my $status = $data->{State}->{Status};
   $status = $status eq 'configured' ? 'created' : $status;
 
@@ -44,7 +44,7 @@ sub kill {
 
   $signal //= 'SIGTERM';
 
-  $self->post((sprintf "containers/%s/kill", $self->name), parameters => {signal => $signal});
+  $self->post('containers/' . $self->name . '/kill', parameters => {signal => $signal});
 
   return 1;
 }
@@ -52,7 +52,7 @@ sub kill {
 sub remove {
   my ($self, $force) = @_;
 
-  $self->delete((sprintf "containers/%s", $self->name), parameters => {force => $force});
+  $self->delete('containers/' . $self->name, parameters => {force => $force});
 
   return 1;
 }
@@ -68,8 +68,8 @@ sub stats {
     CpuPercent => $stats->{CPU},
     MemUsage   => $stats->{MemUsage},
     MemPercent => $stats->{MemPerc},
-    NetIO      => (sprintf "%d / %d", $stats->{NetInput},   $stats->{NetOutput}),
-    BlockIO    => (sprintf "%d / %d", $stats->{BlockInput}, $stats->{BlockOutput}),
+    NetIO      => $stats->{NetInput} . ' / ' . $stats->{NetOutput},
+    BlockIO    => $stats->{BlockInput} . ' / ' . $stats->{BlockOutput},
     PIDs       => $stats->{PIDs},
   };
 }
@@ -77,14 +77,14 @@ sub stats {
 sub systemd {
   my $self = shift;
 
-  my $data = $self->get(sprintf "generate/%s/systemd", $self->name)->json;
+  my $data = $self->get('generate/' . $self->name . '/systemd')->json;
 
   return (values %{$data})[0];
 }
 
 for my $name (qw(pause restart start stop unpause)) {
   Mojo::Util::monkey_patch(__PACKAGE__, $name,
-    sub { my $self = shift; $self->post(sprintf "containers/%s/%s", $self->name, $name); return 1; });
+    sub { my $self = shift; $self->post('containers/' . $self->name . '/' . $name); return 1; });
 }
 
 1;

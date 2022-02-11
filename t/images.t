@@ -1,4 +1,3 @@
-## no critic
 use Test::More;
 
 use FindBin;
@@ -9,23 +8,15 @@ use Mock::Podman::Service;
 
 use Podman::Images;
 
-local $ENV{PODMAN_CONNECTION_URL} =
-  'http+unix://' . File::Temp::tempdir( CLEANUP => 1 ) . '/podman.sock';
+local $ENV{PODMAN_CONNECTION_URL} = 'http+unix://' . File::Temp::tempdir(CLEANUP => 1) . '/podman.sock';
+my $s = Mock::Podman::Service->new->start;
 
-my $service = Mock::Podman::Service->new();
-$service->start;
-
-my $images = Podman::Images->new();
-ok( $images, 'Images object ok.' );
-
-subtest 'Get list of images.' => sub {
-    my $list = $images->list;
-    is( ref $list,      'Mojo::Collection', 'List ok.' );
-    is( $list->size,    2,                  'List length ok.' );
-    is( ref $list->[0], 'Podman::Image',    'List item[0] ok.' );
-    is( ref $list->[1], 'Podman::Image',    'List item[1] ok.' );
+subtest 'Images list' => sub {
+  my $list = Podman::Images->list;
+  is ref $list,        'Mojo::Collection', 'List ok.';
+  is $list->size,      2,                  'List length ok.';
+  is ref $list->first, 'Podman::Image',    'List item[0] ok.';
+  is ref $list->[1],   'Podman::Image',    'List item[1] ok.';
 };
-
-$service->stop;
 
 done_testing();

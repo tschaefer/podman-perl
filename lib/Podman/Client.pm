@@ -11,50 +11,44 @@ use Mojo::Asset::Memory;
 use Mojo::JSON qw(encode_json);
 use Mojo::URL;
 use Mojo::UserAgent;
-use Mojo::Util qw(url_escape);
+use Mojo::Util qw(monkey_patch url_escape);
 
 use Podman::Exception;
 
-has 'connection_url' => sub {
-  return $ENV{PODMAN_CONNECTION_URL}
-    || ($UID != 0 ? "http+unix:///run/user/$UID/podman/podman.sock" : 'http+unix:///run/podman/podman.sock');
-};
+use constant ROOTLESS => "http+unix:///run/user/$UID/podman/podman.sock";
+use constant ROOT     => "http+unix:///run/podman/podman.sock";
 
-for my $name (qw(delete get post)) {
-  Mojo::Util::monkey_patch(__PACKAGE__, $name, sub { return shift->_request(uc $name, @_); });
-}
+has 'connection' => sub { $UID ? ROOTLESS : ROOT unless $ENV{PODMAN_CONNECTION} };
 
-sub _base_url {
+sub api_version {
   my $self = shift;
 
-  my $base_url = Mojo::URL->new($self->_connection_url->scheme eq 'http+unix' ? 'http://d/' : $self->connection_url);
-
-  my $tx;
-  my $url = $base_url->path('_ping');
-  for (0 .. 3) {
-    $tx = $self->_ua->get($url);
-    last if $tx->res->is_success;
-    sleep 1;
-  }
-  Podman::Exception->throw(900) unless $tx->res->is_success;
-
-  $tx = $self->_ua->get($base_url->path('version'));
+  my $tx      = $self->_user_agent->get($self->_base_url->path('version'));
   my $version = $tx->res->json->{Components}->[0]->{Details}->{APIVersion};
 
-  say {*STDERR} "Potential insufficient supported Podman service API version." if $version ne $API_VERSION;
+  say {*STDERR} "Potential insufficient supported Podman service API version." unless $version eq $API_VERSION;
 
-  return $base_url->path('v' . $version . '/libpod/');
+  return $version;
 }
 
-sub _connection_url { return Mojo::URL->new(shift->connection_url); }
+for my $name (qw(delete get post)) {
+  monkey_patch(__PACKAGE__, $name, sub { shift->_request(uc $name, @_); });
+}
+
+sub new { shift->SUPER::new(@_)->_ping; }
+
+sub _base_url { $_[0]->_connection_url->scheme eq 'http+unix' ? Mojo::URL->new('http://d/') : $_[0]->_connection_url; }
+sub _connection_url { Mojo::URL->new(shift->connection); }
 
 sub _request {
   my ($self, $method, $path, %opts) = @_;
 
-  my $url = $self->_base_url->path($path);
+  $self->_ping;
+
+  my $url = $self->_base_url->path('v' . $self->api_version . '/libpod/')->path($path);
   $url->query($opts{parameters}) if $opts{parameters};
 
-  my $tx = $self->_ua->build_tx($method => $url, $opts{headers});
+  my $tx = $self->_user_agent->build_tx($method => $url, $opts{headers});
   if ($opts{data}) {
     my $asset
       = ref $opts{data} eq 'Mojo::File'
@@ -62,23 +56,37 @@ sub _request {
       : Mojo::Asset::Memory->new->add_chunk(encode_json($opts{data}));
     $tx->req->content->asset($asset);
   }
-  $tx = $self->_ua->start($tx);
+  $tx = $self->_user_agent->start($tx);
 
   Podman::Exception->throw($tx->res->code) unless $tx->res->is_success;
 
   return $tx->res;
 }
 
-sub _ua {
+sub _user_agent {
   my $self = shift;
 
-  my $ua = Mojo::UserAgent->new(insecure => 1);
-  $ua->transactor->name("Podman/$VERSION");
-  if ($self->_connection_url->scheme eq 'http+unix') {
-    $ua->proxy->http($self->_connection_url->scheme . '://' . url_escape($self->_connection_url->path));
-  }
+  my $user_agent = Mojo::UserAgent->new(insecure => 1);
+  $user_agent->transactor->name("Podman/$VERSION");
+  $user_agent->proxy->http($self->_connection_url->scheme . '://' . url_escape($self->_connection_url->path))
+    if $self->_connection_url->scheme eq 'http+unix';
 
-  return $ua;
+  return $user_agent;
+}
+
+sub _ping {
+  my $self = shift;
+
+  my $tx;
+  my $url = $self->_base_url->path('_ping');
+  for (0 .. 3) {
+    $tx = $self->_user_agent->get($url);
+    last if $tx->res->is_success;
+    sleep 1;
+  }
+  Podman::Exception->throw(900) unless $tx->res->is_success;
+
+  return $self;
 }
 
 1;
@@ -123,6 +131,13 @@ value of C<PODMAN_CONNECTION_URL> environment variable.
 L<Podman::Client> provides the valid HTTP requests to query the Podman service. All methods take a relative
 endpoint path, optional header parameters and path parameters. if the response has a HTTP code unequal C<2xx> a
 L<Podman::Exception> is raised.
+
+=head2 api_version
+
+    say $client->api_version;
+
+Return Podman service API version. Emits warning if API version differs from implemented
+C<$Podman::Client::API_VERSION>.
 
 =head2 delete
 
