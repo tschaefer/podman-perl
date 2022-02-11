@@ -100,25 +100,26 @@ Podman::Container - Create and control container.
 =head1 SYNOPSIS
 
     # Create container
-    my $container = Podman::Container::create('nginx', 'docker.io/library/nginx');
+    use Podman::Container qw(create);
+    my $container = create('nginx', 'docker.io/library/nginx');
 
     # Start container
-    $container->start();
+    $container->start;
 
     # Stop container
-    $container->stop();
+    $container->stop;
 
     # Kill container
-    $container->kill();
+    $container->kill;
 
 =head1 DESCRIPTION
 
 =head2 Inheritance
 
-    Podman::Containers
+    Podman::Container
         isa Podman::Client
 
-L<Podman::Container> provides functionallity to control a container.
+L<Podman::Container> provides functionallity to create and control a container.
 
 =head1 ATTRIBUTES
 
@@ -126,14 +127,14 @@ L<Podman::Container> implements following attributes.
 
 =head2 name
 
-    my $container = Podman::Container->new();
+    my $container = Podman::Container->new;
     $container->name('docker.io/library/hello-world');
 
-Unique image name or other identifier.
+Unique image name or (short) identifier.
 
 =head1 FUNCTIONS
 
-L<Podman::Image> implements the following functions, which can be imported individually.
+L<Podman::Container> implements the following functions, which can be imported individually.
 
 =head2 create
 
@@ -153,7 +154,7 @@ L<Podman::Container> implements following methods.
 
 =head2 inspect
 
-    my $Info = $container->inspect;
+    my $info = $container->inspect;
 
 Return advanced container information.
 
@@ -171,7 +172,8 @@ Pause running container.
 
 =head2 remove
 
-    $container->Delete(1);
+    my $force = 1;
+    $container->remove($force);
 
 Remove stopped container. Takes additional argument force to remove even running container.
 
@@ -185,7 +187,7 @@ Start stopped container.
 
     my $stats = $container->stats;
     for my $property (keys %{$stats}) {
-        printf "%s: %s\n", $property, $stats->{$property};
+        say $property . ': ' . $stats->{$property};
     }
 
 Return current usage statistics of running container.

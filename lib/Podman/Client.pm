@@ -104,7 +104,7 @@ Podman::Client - Podman service client.
 =head2 Inheritance
 
     Podman::Client
-        isa Mojo::UserAgent
+        wrap Mojo::UserAgent
 
 L<Podman::Client> is a HTTP client (user agent) with the needed support to connect to and query the Podman service.
 

@@ -79,7 +79,8 @@ Podman::Image - Create and control image.
 =head1 SYNOPSIS
 
     # Pull image from registry
-    my $image = Podman::Image::pull('docker.io/library/hello-world');
+    use Podman::Image qw(pull);
+    my $image = pull('docker.io/library/hello-world');
 
     # Build new image from File
     my $image = Podman::Image::build('localhost/goodbye', '/tmp/Dockerfile');
@@ -88,13 +89,13 @@ Podman::Image - Create and control image.
     my $info = $image->inspect;
 
     # Remove local stored image
-    $image->remove();
+    $image->remove;
 
 =head1 DESCRIPTION
 
 =head2 Inheritance
 
-    Podman::Containers
+    Podman::Image
         isa Podman::Client
 
 L<Podman::Image> provides functionality to create and control an image.
@@ -125,9 +126,9 @@ the directory level of the build file are included.
 =head2 pull
 
     use Podman::Image qw(pull);
-    my $image = pull('docker.io/library/hello-world' 'latest', %options);
+    my $image = pull('docker.io/library/hello-world' 'linux', %options);
 
-Pull named image with optional tag, defaults to C<latest> and additional options from registry into store.
+Pull named image with optional tag, defaults to C<latest>, and additional options from registry into store.
 
 =head1 METHODS
 

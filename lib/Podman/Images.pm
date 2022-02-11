@@ -71,8 +71,7 @@ L<Podman::Images> implements following attributes.
 
 =head2 names_only
 
-If C<true>, C<list> returns L<Mojo::Collection> of image names only instead of L<Podman::Image> objects, defaults to
-C<false>.
+If C<true>, C<list> returns L<Mojo::Collection> of image names, defaults to C<false>.
 
 =head1 METHODS
 
@@ -80,9 +79,10 @@ L<Podman::System> implements following methods, which can be used as object or c
 
 =head2 list
 
-    my $list = Podman::Images->list;
+    my $list = Podman::Images->list(names_only => 1);
 
-Returns a L<Mojo::Collection> of L<Podman::Image> objects or image names only of stored images.
+Returns a L<Mojo::Collection> of L<Podman::Image> objects or image names only of stored images. See attribute
+C<names_only>.
 
 =head2 Prune
 
