@@ -9,13 +9,11 @@ use Mojo::IOLoop;
 use Mojo::Util qw(url_escape);
 use Mojo::URL;
 
-has pid    => sub { return; };
-has listen => sub {
-  my $url = $ENV{PODMAN_CONNECTION}
-    || ($UID != 0 ? "http+unix:///run/user/$UID/podman/podman.sock" : 'http+unix:///run/podman/podman.sock');
+use constant ROOTLESS_BASE_URL => "http+unix:///run/user/$UID/podman/podman.sock";
+use constant ROOT_BASE_URL     => "http+unix:///run/podman/podman.sock";
 
-  return Mojo::URL->new($url);
-};
+has pid    => sub { return; };
+has listen => sub { $UID ? ROOTLESS_BASE_URL : ROOT_BASE_URL unless $ENV{PODMAN_BASE_URL} };
 
 $ENV{MOJO_LOG_LEVEL} ||= $ENV{HARNESS_IS_VERBOSE} ? 'trace' : 'fatal';
 
@@ -40,7 +38,7 @@ sub startup {
 sub start {
   my $self = shift;
 
-  my $listen = $self->listen;
+  my $listen = Mojo::URL->new($self->listen);
   if ($listen->scheme eq 'http+unix') {
     $listen = Mojo::URL->new($listen->scheme . '://' . url_escape($listen->path));
   }
