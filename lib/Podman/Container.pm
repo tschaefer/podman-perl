@@ -18,6 +18,7 @@ sub create {
 
   $self->post('containers/create',
     data => {image => ref $image eq 'Podman::Image' ? $image->name : $image, name => $name, %options});
+  $self->get('containers/' . $name . '/exists');
 
   return $self->name($name);
 }
