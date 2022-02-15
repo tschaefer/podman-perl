@@ -7,11 +7,9 @@ use Scalar::Util qw(blessed);
 
 sub disk_usage {
   my $self = shift;
-
   $self = __PACKAGE__->new unless blessed($self);
 
-  my $data = $self->get('system/df')->json;
-
+  my $data = $self->get('system/df')->res->json;
   my %disk_usage;
   for my $type (qw(Volumes Containers Images)) {
     my @data  = @{$data->{$type}};
@@ -22,38 +20,31 @@ sub disk_usage {
     );
     $disk_usage{$type} = \%entry;
   }
-
   return \%disk_usage;
 }
 
 sub info {
   my $self = shift;
-
   $self = __PACKAGE__->new unless blessed($self);
-
-  return $self->get('info')->json;
+  return $self->get('info')->res->json;
 }
 
 sub version {
   my $self = shift;
-
   $self = __PACKAGE__->new unless blessed($self);
 
-  my $data = $self->get('info')->json;
-
+  my $data = $self->get('info')->res->json;
   my $version = $data->{version};
   delete $version->{GitCommit};
   delete $version->{Built};
-
   return $version;
 }
 
 sub prune {
   my $self = shift;
-
   $self = __PACKAGE__->new unless blessed($self);
 
-  return $self->post('system/prune')->json;
+  return $self->post('system/prune')->res->json;
 }
 
 1;

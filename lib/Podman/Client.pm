@@ -43,19 +43,32 @@ sub build_tx {
 
 sub new {
   my $self = shift->SUPER::new(@_);
-
   $self->transactor->name("Podman/$VERSION");
-
   return $self;
 }
 
 # "Rename" method start to run. The method name start is needed in Podman::Container.
 sub run {
   my $tx = shift->SUPER::start(@_);
+  return $tx unless ref $tx eq 'Mojo::Transaction::HTTP';
+  return Podman::Exception->throw($tx->res->code // 900) unless $tx->res->is_success;
+  return $tx;
+}
 
-  Podman::Exception->throw($tx->res->code // 900) unless $tx->res->is_success;
-
-  return $tx->res;
+# "Rename" method start to run. The method name start is needed in Podman::Container.
+sub run_p {
+  my ($self, $tx) = @_;
+  my $promise = Mojo::Promise->new;
+  $self->run($tx => sub { shift->transactor->promisify($promise, shift) });
+  return $promise
+    ->then(sub {
+      my $tx = shift;
+      return Podman::Exception->throw($tx->res->code) unless $tx->res->is_success;
+      return $tx;
+    },
+    sub {
+      return Podman::Exception->throw(900);
+    });
 }
 
 for my $name (qw(DELETE GET HEAD OPTIONS PATCH POST PUT)) {
@@ -63,8 +76,11 @@ for my $name (qw(DELETE GET HEAD OPTIONS PATCH POST PUT)) {
     my ($self, $cb) = (shift, ref $_[-1] eq 'CODE' ? pop : undef);
     return $self->run($self->build_tx($name, @_), $cb);
   };
+  monkey_patch __PACKAGE__, lc($name) . '_p', sub {
+    my $self = shift;
+    return $self->run_p($self->build_tx($name, @_));
+  };
 }
-
 
 1;
 
@@ -107,21 +123,33 @@ value of C<PODMAN_BASE_URL> environment variable.
 
 =head1 METHODS
 
-L<Podman::Client> provides the valid HTTP requests to query the Podman service. All methods take a relative
-endpoint path, optional header parameters and path parameters. if the response has a HTTP code unequal C<2xx> a
-L<Podman::Exception> is raised.
+L<Podman::Client> provides the valid HTTP requests - blocking and non-blocking - to query the Podman service. All
+methods take a relative endpoint path, optional header parameters and path parameters. If the resulting transaction has
+a HTTP response code unequal C<2xx> a L<Podman::Exception> is raised.
 
 =head2 delete
 
-    my $res = $client->delete('images/docker.io/library/hello-world');
+    my $tx = $client->delete('images/docker.io/library/hello-world');
 
-Perform C<DELETE> request and return resulting content.
+Perform C<DELETE> request and return L<Mojo::Transactor::HTTP>.
+
+=head2 delete_p
+
+    my $promise = $client->delete_p('images/docker.io/library/hello-world');
+
+Same as C<delete> but performs request non-blocking and returns L<Mojo::Promise>.
 
 =head2 get
 
-    my $res = $client->get('version');
+    my $tx = $client->get('version');
 
-Perform C<GET> request and return resulting content.
+Perform C<GET> request and return L<Mojo::Transactor::HTTP>.
+
+=head2 get_p
+
+    my $promise = $client->get_p('version');
+
+Same as C<get> but performs request non-blocking and returns L<Mojo::Promise>.
 
 =head2 post
 
@@ -137,7 +165,13 @@ Perform C<GET> request and return resulting content.
         },
     );
 
-Perform C<POST> request and return resulting content, takes additional optional request data.
+Perform C<POST> request and return L<Mojo::Transactor::HTTP>, takes additional optional request data.
+
+=head2 post_p
+
+    my $promise = $client->post('build', ...);
+
+Same as C<post> but performs request non-blocking and returns L<Mojo::Promise>.
 
 =head1 AUTHORS
 

@@ -14,26 +14,23 @@ sub list {
 
   if (!blessed($self)) {
     $self = __PACKAGE__->new();
+
     my %opts = @_;
     $self->names_only($opts{names_only});
   }
 
-  my $containers = $self->get('containers/json', parameters => {all => 1})->json;
-  my @list = map {
+  my $containers = $self->get('containers/json', parameters => {all => 1})->res->json;
+  return c(@{$containers})->map(sub {
     my $name = $_->{Names}->[0] || $_->{Id};
     $self->names_only ? $name : Podman::Container->new(name => $name);
-  } @{$containers};
-
-  return c(@list);
+  });
 }
 
 sub prune {
   my $self = shift;
-
   $self = __PACKAGE__->new() unless blessed($self);
 
   $self->post('containers/prune');
-
   return 1;
 }
 

@@ -14,26 +14,23 @@ sub list {
 
   if (!blessed($self)) {
     $self = __PACKAGE__->new();
+
     my %opts = @_;
     $self->names_only($opts{names_only});
   }
 
-  my $images = $self->get('images/json', parameters => {all => 1},)->json;
-  my @list = map {
+  my $images = $self->get('images/json', parameters => {all => 1},)->res->json;
+  return c(@${images})->map(sub {
     my ($name) = split /:/, $_->{Names}->[0] || $_->{Id};
     $self->names_only ? $name : Podman::Image->new(name => $name);
-  } @{$images};
-
-  return c(@list);
+  });
 }
 
 sub prune {
   my $self = shift;
-
   $self = __PACKAGE__->new() unless blessed($self);
 
   $self->post('images/prune');
-
   return 1;
 }
 

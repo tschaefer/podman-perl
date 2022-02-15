@@ -12,16 +12,13 @@ has 'name' => sub { return '' };
 
 sub build {
   my ($name, $file, %options) = @_;
-
   my $self = __PACKAGE__->new;
 
   my $dir   = path($file)->dirname;
   my @files = map { $_->basename } @{path($dir)->list({dir => 1})->to_array};
-
   chdir $dir;
   my $archive = Archive::Tar->new();
   $archive->add_files(@files);
-
   my $archive_file = tempfile;
   $archive->write($archive_file);
 
@@ -32,38 +29,42 @@ sub build {
     headers    => {'Content-Type' => 'application/x-tar'},
   );
   $self->get('images/' . $name . '/exists');
-
   return $self->name($name);
 }
 
 sub pull {
   my ($name, $tag, %options) = @_;
-
   my $self = __PACKAGE__->new;
 
   my $reference = $name . ':' . $tag // 'latest';
-
   $self->post('images/pull', parameters => {reference => $reference, tlsVerify => 1, %options});
   $self->get('images/' . $name . '/exists');
-
   return $self->name($name);
 }
 
 sub inspect {
   my $self = shift;
+  my $tx   = $self->get('images/' . $self->name . '/json');
+  return $self->_inspect($tx);
+}
 
-  my $data = $self->get('images/' . $self->name . '/json')->json;
-  my $tag  = (split /:/, $data->{RepoTags}->[0])[1];
-
-  return {Tag => $tag, Id => $data->{Id}, Created => $data->{Created}, Size => $data->{Size}};
+sub inspect_p {
+  my $self    = shift;
+  my $promise = $self->get_p('images/' . $self->name . '/json');
+  return $promise->then(sub { return $self->_inspect(shift) });
 }
 
 sub remove {
   my ($self, $force) = @_;
-
   $self->delete('images', parameters => {images => $self->name, force => $force // 0});
-
   return 1;
+}
+
+sub _inspect {
+  my ($self, $tx) = @_;
+  my $data = $tx->res->json;
+  my $tag  = (split /:/, $data->{RepoTags}->[0])[1];
+  return {Tag => $tag, Id => $data->{Id}, Created => $data->{Created}, Size => $data->{Size}};
 }
 
 1;
@@ -136,9 +137,15 @@ L<Podman::Image> implements following methods.
 
 =head2 inspect
 
-    my $Info = $image->inspect();
+    my $info = $image->inspect;
 
 Return advanced image information.
+
+=head2 inspect_p
+
+    $image->inspect_p->then(sub { say $_[0]->{Id} });
+
+Same as C<inspect> but performs request non-blocking and returns L<Mojo::Promise>.
 
 =head2 remove
 
