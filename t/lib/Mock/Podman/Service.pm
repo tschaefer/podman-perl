@@ -3,6 +3,7 @@ package Mock::Podman::Service;
 use Mojo::Base 'Mojolicious';
 
 use English qw( -no_match_vars );
+use IO::Socket qw(AF_INET AF_UNIX SOCK_STREAM SHUT_WR);
 
 use Mojo::Server::Daemon;
 use Mojo::IOLoop;
@@ -53,12 +54,27 @@ sub start {
   if (!$pid) {
     $daemon->start;
     Mojo::IOLoop->start unless Mojo::IOLoop->is_running;
-
     exit 0;
   }
 
-  $self->pid($pid);
+  # Wait until daemon ready.
+  my $peer = Mojo::URL->new($self->listen);
+  my %socket;
+  if ($peer->scheme eq 'http+unix') {
+    %socket = (Domain => AF_UNIX, Type => SOCK_STREAM, Peer => $peer->path->to_string,);
+  }
+  else {
+    %socket = (Domain => AF_INET, Type => SOCK_STREAM, PeerPort => $peer->port, PeerHost => $peer->host,);
+  }
+  for (0 .. 1000) {
+    my $client = IO::Socket->new(%socket);
+    if ($client) {
+      $client->close;
+      last;
+    }
+  }
 
+  $self->pid($pid);
   return $self;
 }
 
@@ -73,12 +89,6 @@ sub stop {
   return;
 }
 
-sub DESTROY {
-  my $self = shift;
-
-  $self->stop();
-
-  return;
-}
+sub DESTROY { shift->stop(); }
 
 1;
